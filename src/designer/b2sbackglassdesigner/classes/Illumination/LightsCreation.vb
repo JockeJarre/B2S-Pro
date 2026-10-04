@@ -355,42 +355,45 @@ Namespace Illumination
                     pathlight.AddEllipse(rectlight)
             End Select
 
-            ' color bulb
-            Dim grad As PathGradientBrush = New PathGradientBrush(pathlight)
-            grad.WrapMode = WrapMode.Clamp
-            grad.SurroundColors = New Color() {Color.FromArgb(0, 0, 0, 0)}
-            ' color not important, because due to a ms round bug we can use only alpha of the color
-            Dim centerAlpha As Integer = CInt(Math.Max(0, Math.Min(255, 255.0 * glowIntensity / 100.0)))
-            grad.CenterColor = Color.FromArgb(If(String.IsNullOrEmpty(text), centerAlpha, Math.Min(30, centerAlpha)), 255, 255, 255)
-            grad.CenterPoint = New PointF(rectlight.X + rectlight.Width / 2 - 5, rectlight.Y + rectlight.Height / 2)
-            ' Edge feather now has a real 0-200 range. 0 keeps a tight center and
-            ' 200 produces the broadest transition. Contrast remains a separate
-            ' 0-100 control instead of cancelling the feather setting.
-            Dim featherFactor As Double = Math.Max(0.0, Math.Min(1.0, glowSoftness / 200.0))
-            Dim contrastFactor As Double = Math.Max(0.0, Math.Min(1.0, glowFalloff / 100.0))
-            Dim baseFocus As Double = 0.88 - (0.82 * featherFactor)
-            baseFocus += (contrastFactor - 0.5) * 0.18
-
-            ' Light Diffuser is neutral at zero and progressively spreads the
-            ' center energy outward through the full 0-300 range.
-            Dim diffusionFactor As Double = Math.Max(0.0, Math.Min(1.0, lightDiffusion / 300.0))
-            Dim focus As Single = CSng(Math.Max(0.01, Math.Min(0.95, baseFocus * (1.0 - 0.88 * diffusionFactor))))
-            grad.FocusScales = New PointF(focus, focus)
-            gr.FillRectangle(grad, rectlight)
-            grad.Dispose()
-            pathlight.Dispose()
-            If pathlight2 IsNot Nothing Then
-                grad = New PathGradientBrush(pathlight2)
+            ' A text box illuminates only its glyph pixels. The former low-alpha
+            ' bulb oval behind text caused the visible halo/bleed around letters.
+            ' Normal lights and flashers keep their established gradient path.
+            If String.IsNullOrEmpty(text) Then
+                Dim grad As PathGradientBrush = New PathGradientBrush(pathlight)
                 grad.WrapMode = WrapMode.Clamp
                 grad.SurroundColors = New Color() {Color.FromArgb(0, 0, 0, 0)}
                 ' color not important, because due to a ms round bug we can use only alpha of the color
-                grad.CenterColor = Color.FromArgb(If(String.IsNullOrEmpty(text), centerAlpha, Math.Min(30, centerAlpha)), 255, 255, 255)
+                Dim centerAlpha As Integer = CInt(Math.Max(0, Math.Min(255, 255.0 * glowIntensity / 100.0)))
+                grad.CenterColor = Color.FromArgb(centerAlpha, 255, 255, 255)
                 grad.CenterPoint = New PointF(rectlight.X + rectlight.Width / 2 - 5, rectlight.Y + rectlight.Height / 2)
+                ' Edge feather now has a real 0-200 range. 0 keeps a tight center and
+                ' 200 produces the broadest transition. Contrast remains a separate
+                ' 0-100 control instead of cancelling the feather setting.
+                Dim featherFactor As Double = Math.Max(0.0, Math.Min(1.0, glowSoftness / 200.0))
+                Dim contrastFactor As Double = Math.Max(0.0, Math.Min(1.0, glowFalloff / 100.0))
+                Dim baseFocus As Double = 0.88 - (0.82 * featherFactor)
+                baseFocus += (contrastFactor - 0.5) * 0.18
+
+                ' Light Diffuser is neutral at zero and progressively spreads the
+                ' center energy outward through the full 0-300 range.
+                Dim diffusionFactor As Double = Math.Max(0.0, Math.Min(1.0, lightDiffusion / 300.0))
+                Dim focus As Single = CSng(Math.Max(0.01, Math.Min(0.95, baseFocus * (1.0 - 0.88 * diffusionFactor))))
                 grad.FocusScales = New PointF(focus, focus)
                 gr.FillRectangle(grad, rectlight)
                 grad.Dispose()
-                pathlight2.Dispose()
+                If pathlight2 IsNot Nothing Then
+                    grad = New PathGradientBrush(pathlight2)
+                    grad.WrapMode = WrapMode.Clamp
+                    grad.SurroundColors = New Color() {Color.FromArgb(0, 0, 0, 0)}
+                    grad.CenterColor = Color.FromArgb(centerAlpha, 255, 255, 255)
+                    grad.CenterPoint = New PointF(rectlight.X + rectlight.Width / 2 - 5, rectlight.Y + rectlight.Height / 2)
+                    grad.FocusScales = New PointF(focus, focus)
+                    gr.FillRectangle(grad, rectlight)
+                    grad.Dispose()
+                End If
             End If
+            pathlight.Dispose()
+            If pathlight2 IsNot Nothing Then pathlight2.Dispose()
 
             ' maybe render text
             If Not String.IsNullOrEmpty(text) AndAlso font IsNot Nothing Then
@@ -817,7 +820,14 @@ Namespace Illumination
                 ' scale the merge energy with Glow Intensity up to the 400% UI limit.
                 ' This was accidentally lost when the temperature renderer was tuned.
                 Dim effectiveIntensity As Double = Math.Max(0.0, intensity * (Math.Max(0, glowIntensity) / 100.0))
-                MergeLayers(currentimage, image, effectiveIntensity, lightcolor, dodgecolor)
+                ' Text uses the chosen Dodge Color as its brightness color as well as
+                ' the final dodge. Otherwise a high white brightness pass saturates
+                ' every glyph channel before ColorDodge runs, making every Dodge Color
+                ' produce the same white text. Non-text lights retain the established
+                ' Light Color and Dodge Color merge unchanged.
+                Dim mergeLightColor As Color = lightcolor
+                If Not String.IsNullOrEmpty(text) AndAlso dodgecolor <> Nothing Then mergeLightColor = dodgecolor
+                MergeLayers(currentimage, image, effectiveIntensity, mergeLightColor, dodgecolor)
                 ' A rear snippet can be visible through transparent canvas pixels.
                 ' Those pixels commonly store RGB 0,0,0 even though their alpha is
                 ' zero. The legacy artwork merge therefore produced a black glow

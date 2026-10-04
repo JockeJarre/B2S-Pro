@@ -169,6 +169,7 @@ Public Module B2SProMainToolbar
         If key.Contains("newreel") OrElse key.Contains("addnewreel") Then Return "ADD" & vbLf & "REEL OR LED" & vbLf & "FRAME"
         If key.Contains("newbulb") Then Return "ADD" & vbLf & "LIGHT"
         If key.Contains("flasher") Then Return "ADD" & vbLf & "FLASHER"
+        If key.Contains("addtext") Then Return "ADD" & vbLf & "TEXT"
         If key.Contains("makesnippet") Then Return "MAKE" & vbLf & "SNIPPET"
         If key.Contains("snippet") Then Return "ADD" & vbLf & "SNIPPET"
         If key.Contains("animation") Then Return "ANIMATION"
@@ -335,6 +336,13 @@ Public Module B2SProMainToolbar
                         g.DrawLine(flashPen, 4, 24, 9, 21)
                         g.DrawLine(flashPen, 28, 24, 23, 21)
                     End Using
+                ElseIf key.Contains("addtext") Then
+                    Using textFont As New Font("Arial Black", 19.0F, FontStyle.Bold, GraphicsUnit.Pixel),
+                          textBrush As New SolidBrush(accent)
+                        TextRenderer.DrawText(g, "T", textFont, New Rectangle(2, 3, 27, 27), accent,
+                                              TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter Or TextFormatFlags.NoPadding)
+                    End Using
+                    DrawPlus(g, 26, 8, Color.White)
                 ElseIf key.Contains("animation") Then
                     g.DrawEllipse(glow, 5, 5, 22, 22) : g.DrawEllipse(line, 5, 5, 22, 22)
                     Using playBrush As New SolidBrush(Color.White)
@@ -416,6 +424,7 @@ Public Module B2SProMainToolbar
         If key.Contains("scoreframes") Then Return Color.FromArgb(21, 197, 255)
         If key.Contains("reel") OrElse key.Contains("score") Then Return Color.FromArgb(255, 183, 0)
         If key.Contains("flasher") Then Return Color.FromArgb(255, 153, 0)
+        If key.Contains("addtext") Then Return Color.FromArgb(255, 214, 76)
         If key.Contains("snippet") Then Return Color.FromArgb(255, 54, 68)
         If key.Contains("animation") Then Return Color.FromArgb(72, 226, 140)
         If key.Contains("illu") OrElse key.Contains("bulb") Then Return Color.FromArgb(226, 72, 255)
@@ -438,6 +447,7 @@ Public Module B2SProMainToolbar
             End If
             If itemName.Equals("tsbAddNewBulbFrame", StringComparison.OrdinalIgnoreCase) OrElse
                itemName.Equals("tsbAddFlasherEnhanced", StringComparison.OrdinalIgnoreCase) OrElse
+               itemName.Equals("tsbAddTextEnhanced", StringComparison.OrdinalIgnoreCase) OrElse
                itemName.Equals("tsbAddSnippetEnhanced", StringComparison.OrdinalIgnoreCase) Then
                 Return Color.FromArgb(255, 218, 45)
             End If

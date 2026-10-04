@@ -5,6 +5,7 @@ Public Class formToolIllumination
     Public ignoreChange As Boolean = False
 
     Private btnGlow As Button
+    Private btnTextSettings As Button
     Private lblSelectedType As Label
     Private lblLampPropertiesHeader As Label
     Private illuminationToolTip As ToolTip
@@ -97,23 +98,39 @@ Public Class formToolIllumination
         illuminationToolTip = New ToolTip()
 
         ' Compact studio-panel proportions used by every rebuilt tool window.
-        Me.ClientSize = ScaleLogicalSize(New Size(270, 650))
-        Me.MinimumSize = ScaleLogicalSize(New Size(250, 560))
+        Me.ClientSize = ScaleLogicalSize(New Size(270, 445))
+        Me.MinimumSize = ScaleLogicalSize(New Size(250, 400))
         Me.SetStyle(ControlStyles.AllPaintingInWmPaint Or ControlStyles.OptimizedDoubleBuffer Or ControlStyles.ResizeRedraw, True)
 
         btnGlow = New Button With {.Name = "btnEditLightGlow", .Text = "Light Settings...", .FlatStyle = FlatStyle.Flat, .Height = 25}
         AddHandler btnGlow.Click, AddressOf EditLightGlow_Click
+        btnTextSettings = New Button With {.Name = "btnEditTextSettings", .Text = "Text Settings...", .FlatStyle = FlatStyle.Flat, .Height = 25}
+        AddHandler btnTextSettings.Click, AddressOf EditTextSettings_Click
         AddHandler Me.Resize, AddressOf ReflowIlluminationLayout
         AddHandler Me.Shown, AddressOf ReflowIlluminationLayout
         AddHandler Me.DpiChanged, AddressOf ReflowIlluminationLayout
         Me.Controls.Add(btnGlow)
+        Me.Controls.Add(btnTextSettings)
 
         numericIntensity.Name = "numericIntensity"
         TrackBarNumericLink.Bind(TrackBarIntensity, numericIntensity)
         Me.Controls.Add(numericIntensity)
 
+        ' Text appearance now has its own editor. Keep the original controls in
+        ' the form class for project compatibility, but remove them from this
+        ' general illumination panel so they cannot compete with Text Settings.
+        For Each oldControl As Control In New Control() {
+            lblIntensity, TrackBarIntensity, numericIntensity, btnLightColor,
+            lblDodgeColor, cmbDodgeColor, B2SLine3,
+            lblIlluminationText, txtIlluminationText, rbAlignLeft, rbAlignCenter,
+            rbAlignRight, btnFonts, B2SLine4}
+            oldControl.Visible = False
+            oldControl.TabStop = False
+        Next
+
         ReflowIlluminationLayout(Nothing, EventArgs.Empty)
         btnGlow.BringToFront()
+        btnTextSettings.BringToFront()
         numericIntensity.BringToFront()
 
     End Sub
@@ -158,45 +175,26 @@ Public Class formToolIllumination
         txtB2SValue.SetBounds(contentLeft, ScaleLogical(229), contentWidth, ScaleLogical(22))
         B2SLine5.SetBounds(margin, ScaleLogical(254), fullWidth, ScaleLogical(16))
 
-        ' Intensity and color.
-        lblIntensity.SetBounds(labelLeft, ScaleLogical(274), labelWidth, ScaleLogical(21))
-        TrackBarIntensity.SetBounds(contentLeft, ScaleLogical(268), Math.Max(ScaleLogical(42), contentWidth - ScaleLogical(92)), ScaleLogical(31))
-        numericIntensity.SetBounds(contentLeft + contentWidth - ScaleLogical(86), ScaleLogical(272), ScaleLogical(54), ScaleLogical(23))
-        btnLightColor.SetBounds(contentLeft + contentWidth - ScaleLogical(28), ScaleLogical(272), ScaleLogical(28), ScaleLogical(23))
-        lblDodgeColor.SetBounds(labelLeft, ScaleLogical(300), labelWidth, ScaleLogical(21))
-        cmbDodgeColor.SetBounds(contentLeft, ScaleLogical(299), contentWidth, ScaleLogical(22))
-        B2SLine3.SetBounds(margin, ScaleLogical(324), fullWidth, ScaleLogical(16))
-
-        ' Illuminated text and font controls.
-        lblIlluminationText.SetBounds(labelLeft, ScaleLogical(344), labelWidth, ScaleLogical(21))
-        txtIlluminationText.SetBounds(contentLeft, ScaleLogical(343), contentWidth, ScaleLogical(48))
-        txtIlluminationText.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
-
-        rbAlignLeft.SetBounds(labelLeft, ScaleLogical(394), ScaleLogical(28), ScaleLogical(22))
-        rbAlignCenter.SetBounds(labelLeft + ScaleLogical(32), ScaleLogical(394), ScaleLogical(28), ScaleLogical(22))
-        rbAlignRight.SetBounds(labelLeft + ScaleLogical(64), ScaleLogical(394), ScaleLogical(28), ScaleLogical(22))
-        btnFonts.SetBounds(margin, ScaleLogical(420), fullWidth, ScaleLogical(28))
-        btnFonts.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
-
         B2SLine1.Visible = False
-        B2SLine4.SetBounds(margin, ScaleLogical(454), fullWidth, ScaleLogical(16))
-        B2SLine4.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
 
         ' Location and size rows.
-        lblLocation.SetBounds(labelLeft, ScaleLogical(474), labelWidth, ScaleLogical(21))
-        txtLocationX.SetBounds(contentLeft, ScaleLogical(473), halfWidth, ScaleLogical(22))
-        txtLocationY.SetBounds(contentLeft + halfWidth + ScaleLogical(6), ScaleLogical(473), contentWidth - halfWidth - ScaleLogical(6), ScaleLogical(22))
-        lblSize.SetBounds(labelLeft, ScaleLogical(500), labelWidth, ScaleLogical(21))
-        txtSizeWidth.SetBounds(contentLeft, ScaleLogical(499), halfWidth, ScaleLogical(22))
-        txtSizeHeight.SetBounds(contentLeft + halfWidth + ScaleLogical(6), ScaleLogical(499), contentWidth - halfWidth - ScaleLogical(6), ScaleLogical(22))
+        lblLocation.SetBounds(labelLeft, ScaleLogical(274), labelWidth, ScaleLogical(21))
+        txtLocationX.SetBounds(contentLeft, ScaleLogical(273), halfWidth, ScaleLogical(22))
+        txtLocationY.SetBounds(contentLeft + halfWidth + ScaleLogical(6), ScaleLogical(273), contentWidth - halfWidth - ScaleLogical(6), ScaleLogical(22))
+        lblSize.SetBounds(labelLeft, ScaleLogical(300), labelWidth, ScaleLogical(21))
+        txtSizeWidth.SetBounds(contentLeft, ScaleLogical(299), halfWidth, ScaleLogical(22))
+        txtSizeHeight.SetBounds(contentLeft + halfWidth + ScaleLogical(6), ScaleLogical(299), contentWidth - halfWidth - ScaleLogical(6), ScaleLogical(22))
 
         ' Advanced Feather and Contrast controls are intentionally available
         ' only through the Light Settings dialog.
-        btnSnippitSettings.SetBounds(margin, ScaleLogical(528), fullWidth, ScaleLogical(29))
+        btnSnippitSettings.SetBounds(margin, ScaleLogical(330), fullWidth, ScaleLogical(29))
         btnSnippitSettings.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
-        btnGlow.SetBounds(margin, ScaleLogical(563), fullWidth, ScaleLogical(29))
+        btnGlow.SetBounds(margin, ScaleLogical(365), fullWidth, ScaleLogical(29))
         btnGlow.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
+        btnTextSettings.SetBounds(margin, ScaleLogical(365), fullWidth, ScaleLogical(29))
+        btnTextSettings.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
         btnGlow.BringToFront()
+        btnTextSettings.BringToFront()
     End Sub
 
     Private Function ScaleLogical(ByVal value As Integer) As Integer
@@ -217,9 +215,11 @@ Public Class formToolIllumination
         Dim hasEditableSelection As Boolean = selected IsNot Nothing AndAlso
                                               Not selected.IsImageSnippit AndAlso
                                               selected.IlluMode <> Illumination.eIlluMode.Flasher
-        btnGlow.Enabled = hasEditableSelection
-        btnGlow.Visible = (selected Is Nothing OrElse selected.IlluMode <> Illumination.eIlluMode.Flasher)
-        btnLightColor.Enabled = hasEditableSelection
+        Dim isText As Boolean = selected IsNot Nothing AndAlso Not String.IsNullOrEmpty(selected.Text)
+        btnGlow.Enabled = hasEditableSelection AndAlso Not isText
+        btnGlow.Visible = Not isText AndAlso (selected Is Nothing OrElse selected.IlluMode <> Illumination.eIlluMode.Flasher)
+        btnTextSettings.Enabled = hasEditableSelection AndAlso isText
+        btnTextSettings.Visible = isText
         If selected Is Nothing Then
             lblSelectedType.Text = "Selected: None"
             lblIntensity.Text = "Intensity:"
@@ -233,12 +233,25 @@ Public Class formToolIllumination
             lblSelectedType.Text = "Selected: Flasher"
             lblIntensity.Text = "Flash Intensity:"
             illuminationToolTip.SetToolTip(btnLightColor, "Flash Color")
+        ElseIf isText Then
+            lblSelectedType.Text = "Selected: Text Box"
         Else
             lblSelectedType.Text = "Selected: Light"
             lblIntensity.Text = "Light Intensity:"
             btnGlow.Text = "Light Settings..."
             illuminationToolTip.SetToolTip(btnLightColor, "Light Color")
         End If
+    End Sub
+
+    Private Sub EditTextSettings_Click(ByVal sender As Object, ByVal e As EventArgs)
+        If Backglass.currentTabPage Is Nothing OrElse Backglass.currentTabPage.Mouse.SelectedBulb Is Nothing Then Return
+        Dim selected As Illumination.BulbInfo = Backglass.currentTabPage.Mouse.SelectedBulb
+        If selected.IsImageSnippit OrElse String.IsNullOrEmpty(selected.Text) Then Return
+        Using editor As New formTextSettingsEditor(selected)
+            editor.ShowDialog(Me)
+        End Using
+        Backglass.currentTabPage.RefreshIllumination()
+        Backglass.currentTabPage.Invalidate()
     End Sub
 
     Private Sub EditLightGlow_Click(ByVal sender As Object, ByVal e As EventArgs)

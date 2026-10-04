@@ -22,6 +22,7 @@ Public Class formDesigner
     Private tsbAddSnippetEnhanced As ToolStripButton
     Private tsbMakeSnippetEnhanced As ToolStripButton
     Private tsbAddFlasherEnhanced As ToolStripButton
+    Private tsbAddTextEnhanced As ToolStripButton
     Private tsbManageAnimationsEnhanced As ToolStripButton
     Private tsbChooseReelTypeEnhanced As ToolStripButton
     Private tsbBackglassBrightnessEnhanced As ToolStripButton
@@ -208,6 +209,19 @@ Public Class formDesigner
         Dim flasherInsertIndex As Integer = tsB2SDesigner.Items.IndexOf(tsbAddNewBulbFrame) + 1
         tsB2SDesigner.Items.Insert(flasherInsertIndex, tsbAddFlasherEnhanced)
 
+        ' Illuminated text uses the established BulbInfo/XML/runtime path, but
+        ' starts in its own focused Text Settings editor.
+        tsbAddTextEnhanced = New ToolStripButton() With {
+            .Name = "tsbAddTextEnhanced",
+            .ToolTipText = "Add illuminated text",
+            .Enabled = tsmiAddNewBulbFrame.Enabled
+        }
+        AddHandler tsbAddTextEnhanced.Click, AddressOf AddNewText_Click
+        AddHandler tsmiAddNewBulbFrame.EnabledChanged,
+            Sub() tsbAddTextEnhanced.Enabled = tsmiAddNewBulbFrame.Enabled
+        Dim textInsertIndex As Integer = tsB2SDesigner.Items.IndexOf(tsbAddFlasherEnhanced) + 1
+        tsB2SDesigner.Items.Insert(textInsertIndex, tsbAddTextEnhanced)
+
         ' Add Snippet uses the same command path as the existing Illumination
         ' menu item, so both entry points open and update the identical dialog.
         tsbAddSnippetEnhanced = New ToolStripButton() With {
@@ -218,7 +232,7 @@ Public Class formDesigner
         AddHandler tsbAddSnippetEnhanced.Click, AddressOf AddANewIlluminationSnippit_Click
         AddHandler tsmiAddANewIlluminationSnippit.EnabledChanged,
             Sub() tsbAddSnippetEnhanced.Enabled = tsmiAddANewIlluminationSnippit.Enabled
-        Dim snippetInsertIndex As Integer = tsB2SDesigner.Items.IndexOf(tsbAddFlasherEnhanced) + 1
+        Dim snippetInsertIndex As Integer = tsB2SDesigner.Items.IndexOf(tsbAddTextEnhanced) + 1
         tsB2SDesigner.Items.Insert(snippetInsertIndex, tsbAddSnippetEnhanced)
 
         ' Make Snippet captures pixels from the currently displayed Backglass or
@@ -2807,6 +2821,33 @@ Public Class formDesigner
         If Not Backglass.currentTabPage.ShowIlluFrames Then tsmiShowIlluFrames.PerformClick()
         Backglass.currentTabPage.Illumination_AddFlasher()
     End Sub
+    Private Sub AddNewText_Click(ByVal sender As Object, ByVal e As EventArgs)
+        If Backglass.currentTabPage Is Nothing Then Return
+        If Not Backglass.currentTabPage.ShowIlluFrames Then tsmiShowIlluFrames.PerformClick()
+
+        Backglass.currentTabPage.Illumination_AddBulb()
+        Dim selected As Illumination.BulbInfo = Backglass.currentTabPage.SelectedBulb
+        If selected Is Nothing Then Return
+
+        selected.Name = "Text Box"
+        ' A single space keeps this empty object identified as a text box until
+        ' the user double-clicks it and enters the actual lettering.
+        selected.Text = " "
+        selected.FontName = If(String.IsNullOrWhiteSpace(selected.FontName), "Arial", selected.FontName)
+        selected.FontSize = Math.Max(10.0F, selected.FontSize)
+        ' Text uses the established glyph/dodge renderer. Artwork-pixel lighting
+        ' is reserved for regular lights and flashers.
+        selected.ArtworkPixelLighting = False
+        selected.IsIlluminatedImageDirty = True
+        If Backglass.currentData IsNot Nothing Then Backglass.currentData.IsDirty = True
+
+        ' Placement comes first. The existing double-click settings route opens
+        ' Text Settings after the user has positioned and sized the box.
+        Backglass.currentTabPage.RefreshIllumination()
+        Backglass.currentTabPage.Invalidate()
+        Backglass.currentTabPage.Update()
+        LoadToolIlluminationForm()
+    End Sub
     Private Sub AddANewIlluminationSnippit_Click(sender As System.Object, e As System.EventArgs) Handles tsmiAddANewIlluminationSnippit.Click
         If Backglass.currentTabPage IsNot Nothing Then
             ' maybe show frames
@@ -3526,6 +3567,7 @@ Public Class formDesigner
         tsbShowIlluFrames.Enabled = isValid
         tsbAddNewBulbFrame.Enabled = isValid
         If tsbAddFlasherEnhanced IsNot Nothing Then tsbAddFlasherEnhanced.Enabled = isValid
+        If tsbAddTextEnhanced IsNot Nothing Then tsbAddTextEnhanced.Enabled = isValid
         tsbShowIllumination.Enabled = isValid
         tsbShowIlluminationWithAccurateIntensity.Enabled = isValid
         If tsbManageAnimationsEnhanced IsNot Nothing Then tsbManageAnimationsEnhanced.Enabled = isValid
@@ -3603,6 +3645,16 @@ Public Class formDesigner
         Try
             If selected.IsImageSnippit AndAlso selected.IlluMode <> Illumination.eIlluMode.Flasher Then
                 OpenSelectedSnippitProperties(selected)
+                Return
+            End If
+
+            If Not String.IsNullOrEmpty(selected.Text) Then
+                Using editor As New formTextSettingsEditor(selected)
+                    editor.ShowDialog(Me)
+                End Using
+                Backglass.currentTabPage.RefreshIllumination()
+                Backglass.currentTabPage.Invalidate()
+                LoadToolIlluminationForm()
                 Return
             End If
 

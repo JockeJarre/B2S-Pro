@@ -690,7 +690,7 @@ Public Partial Class B2SData
                 End If
                 Return
             End If
-            If Not StartEntry() AndAlso GravityDropEnabled() AndAlso gravityReuseEnabled AndAlso QueueEnabled() Then QueueOperation(False)
+            If Not StartEntry() AndAlso GravityDropEnabled() AndAlso gravityReuseEnabled AndAlso availableGravityMembers.Count > 0 AndAlso QueueEnabled() Then QueueOperation(False)
         End Sub
 
         Public Sub RequestRemove()
@@ -786,7 +786,8 @@ Public Partial Class B2SData
                     availableGravityMembers.Remove(memberToStart)
                     AssignNextOpenEntrySlot(memberToStart)
                 End If
-            Else
+            End If
+            If memberToStart Is Nothing Then
                 For Each member As B2SPictureBox In members
                     If (memberToStart Is Nothing OrElse member.MotionPathSequenceOrder < memberToStart.MotionPathSequenceOrder) AndAlso
                        Not occupiedMembers.Contains(member) AndAlso Not activeEntries.Contains(member) Then

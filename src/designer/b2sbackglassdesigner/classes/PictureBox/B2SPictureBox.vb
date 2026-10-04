@@ -693,7 +693,8 @@ Public Class B2SPictureBox
                                                             (.IlluMode = Illumination.eIlluMode.Flasher OrElse
                                                              .LightPurpose = Illumination.eLightPurpose.Flasher))
                                 Dim isBlinker As Boolean = (Not isSnippet AndAlso Not isFlasher AndAlso .BlinkEnabled)
-                                Dim objectFrameColor As Color = If(isSnippet, Color.Red, If(isFlasher, Color.RoyalBlue, If(isBlinker, Color.DarkOrange, Color.Gold)))
+                                Dim isText As Boolean = (Not isSnippet AndAlso Not isFlasher AndAlso Not String.IsNullOrEmpty(.Text))
+                                Dim objectFrameColor As Color = If(isSnippet, Color.Red, If(isFlasher, Color.RoyalBlue, If(isBlinker, Color.DarkOrange, If(isText, Color.LimeGreen, Color.Gold))))
                                 pen.Color = objectFrameColor
                                 pendashed.Color = objectFrameColor
 
@@ -737,7 +738,7 @@ Public Class B2SPictureBox
                                 End If
                                 ' Compact type badge: the frame color already communicates the
                                 ' object family, so one bold letter is clearer on small windows.
-                                Dim typeText As String = If(isSnippet, "S", If(isFlasher, "F", If(isBlinker, "B", "L")))
+                                Dim typeText As String = If(isSnippet, "S", If(isFlasher, "F", If(isBlinker, "B", If(isText, "T", "L"))))
                                 Dim typeBackColor As Color = objectFrameColor
                                 Dim typeForeColor As Color = If(isSnippet OrElse isFlasher OrElse isBlinker, Color.White, Color.Black)
                                 Using typeFont As New Font("Tahoma", 7.0F, FontStyle.Bold)
