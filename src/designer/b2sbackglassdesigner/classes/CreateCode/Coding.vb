@@ -295,6 +295,7 @@ Public Class Coding
                 With score.Value
                     nodeScore.SetAttribute("Parent", If((.ParentForm = eParentForm.DMD), "DMD", "Backglass"))
                     nodeScore.SetAttribute("ID", .ID)
+                    If ReelLibraryChanges.KeepDigitAspect(score.Value) Then nodeScore.SetAttribute("KeepDigitAspect", "1")
                     If Backglass.currentData.CommType = eCommType.B2S Then
                         nodeScore.SetAttribute("B2SStartDigit", .B2SStartDigit.ToString())
                         nodeScore.SetAttribute("B2SScoreType", CInt(.B2SScoreType).ToString())
@@ -383,6 +384,11 @@ Public Class Coding
                             reelimages.Add(reelname, New Generic.Dictionary(Of String, Image))
                         End If
                         Dim index As Integer = 0
+                        Dim exportLimit As Integer = 25
+                        Dim generatedCredits As Boolean = isEMR_CT AndAlso reeltype.StartsWith(ImportedStartString) AndAlso savescores.Any(Function(pair) pair.Value.ReelType = reeltype AndAlso ReelLibraryChanges.KeepDigitAspect(pair.Value))
+                        If generatedCredits Then
+                            exportLimit = GeneralData.currentData.ImportedCreditReelImageSets(CInt(reeltype.Substring(14).Replace("_00", ""))).Length - 1
+                        End If
                         Do While True
                             Dim currentname As String
                             If isEMR_CT Then
@@ -412,10 +418,10 @@ Public Class Coding
                                     reelimages(reelname).Add(currentname, reelimage)
                                 End If
                                 ' maybe get out here
-                                If index < 0 Or index > 25 Then
+                                If index < 0 OrElse If(generatedCredits, index >= exportLimit, index > exportLimit) Then
                                     Exit Do
                                 End If
-                            ElseIf index > 25 Then ' Safety belt, never try more than 25 rounds
+                            ElseIf index > exportLimit Then ' Bound imported credit sets by their actual image count.
                                 Exit Do
                             Else
                                 ' do not add the empty image because it isn't needed
@@ -1189,6 +1195,7 @@ Public Class Coding
                             Dim score As ReelAndLED.ScoreInfo = New ReelAndLED.ScoreInfo()
                             score.ID = CInt(innerNode.Attributes("ID").InnerText)
                             score.ReelType = innerNode.Attributes("ReelType").InnerText.Replace("Dream7", "Rendered")
+                            If innerNode.Attributes("KeepDigitAspect") IsNot Nothing Then score.KeepDigitAspect = (innerNode.Attributes("KeepDigitAspect").InnerText = "1")
                             score.ReelColor = _backglassData.ReelColor
                             score.Digits = CInt(innerNode.Attributes("Digits").InnerText)
                             score.Spacing = CInt(innerNode.Attributes("Spacing").InnerText)

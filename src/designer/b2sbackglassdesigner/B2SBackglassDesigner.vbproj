@@ -104,6 +104,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Deployment" />
     <Reference Include="System.Drawing" />
@@ -229,6 +230,10 @@
     <Compile Include="Forms\formReelType.Designer.vb">
       <DependentUpon>formReelType.vb</DependentUpon>
     </Compile>
+    <Compile Include="Forms\formDigitSheetImport.vb" />
+    <Compile Include="Modules\ReelLibraryChanges.vb" />
+    <Compile Include="Modules\DigitSheetPdf.vb" />
+    <Compile Include="Modules\DigitRecognition.vb" />
     <Compile Include="Forms\formReelType.vb">
       <SubType>Form</SubType>
     </Compile>
@@ -834,6 +839,7 @@
   </Target>
   -->
   <ItemGroup>
+    <Compile Include="..\..\shared\ReelImageSizing.vb"><Link>Shared\ReelImageSizing.vb</Link></Compile>
     <Compile Include="..\..\shared\PhysicsBallState.vb"><Link>Shared\PhysicsBallState.vb</Link></Compile>
   </ItemGroup>
 

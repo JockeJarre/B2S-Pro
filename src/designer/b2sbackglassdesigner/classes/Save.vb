@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Text
 Imports System.IO
 Imports System.Linq
@@ -188,6 +188,7 @@ Public Class Save
                         Dim score As ReelAndLED.ScoreInfo = New ReelAndLED.ScoreInfo()
                         score.ID = CInt(innerNode.Attributes("ID").InnerText)
                         score.ReelType = innerNode.Attributes("ReelType").InnerText
+                        If innerNode.Attributes("KeepDigitAspect") IsNot Nothing Then score.KeepDigitAspect = (innerNode.Attributes("KeepDigitAspect").InnerText = "1")
                         score.ReelColor = _backglassData.ReelColor
                         If innerNode.Attributes("ReelColor") IsNot Nothing Then
                             score.ReelColor = String2Color(innerNode.Attributes("ReelColor").InnerText.Replace(";", "."))
@@ -721,6 +722,7 @@ Public Class Save
                             nodeScore.SetAttribute("ID", .ID)
                             nodeScore.SetAttribute("Parent", If((score.Key >= 1000000), "DMD", "Backglass"))
                             nodeScore.SetAttribute("ReelType", .ReelType.ToString())
+                            If ReelLibraryChanges.KeepDigitAspect(score.Value) Then nodeScore.SetAttribute("KeepDigitAspect", "1")
                             If .ReelColor <> Nothing Then
                                 nodeScore.SetAttribute("ReelColor", Color2String(.ReelColor))
                             End If

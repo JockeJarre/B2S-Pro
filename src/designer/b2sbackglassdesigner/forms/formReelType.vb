@@ -51,6 +51,7 @@ Public Class formReelType
         TrackBarThickness.Value = Math.Max(CInt(d7thickness / 2), 1)
         TrackBarShear.Value = CInt(d7shear * 50)
         ' show dialog
+        ConfigureImageLibraryMenu()
         If lvEMReels.Items.Count = 0 Then FillReelListView(eImageSetType.ReelImages, ilReels, lvEMReels, DefaultEMReels)
         If lvEMCreditReels.Items.Count = 0 Then FillReelListView(eImageSetType.CreditReelImages, ilEMCeditReels, lvEMCreditReels, DefaultEMCreditReels)
         If lvLEDs.Items.Count = 0 Then FillReelListView(eImageSetType.LEDImages, ilLEDs, lvLEDs, DefaultLEDs)
@@ -262,12 +263,10 @@ Public Class formReelType
                 itemExport.Tag = 1
                 AddHandler itemExport.Click, AddressOf btnExportReels_Click
 
-                Dim selectedReelName As String = lvEMReels.SelectedItems(0).Text
-                If selectedReelName.StartsWith("Imported") Then
-                    Dim itemDelete = cms.Items.Add("Delete")
-                    itemDelete.Tag = 2
-                    AddHandler itemDelete.Click, AddressOf DeleteReel_Click
-                End If
+                Dim itemDelete = cms.Items.Add("Delete image set…")
+                AddHandler itemDelete.Click, AddressOf DeleteReel_Click
+                Dim rename = cms.Items.Add("Rename image set…")
+                AddHandler rename.Click, Sub() RenameSet(lvEMReels)
 
                 cms.Show(lvEMReels, e.Location)
             End If
@@ -282,12 +281,10 @@ Public Class formReelType
                 itemExport.Tag = 1
                 AddHandler itemExport.Click, AddressOf btnExportCreditReels_Click
 
-                Dim selectedReelName As String = lvEMCreditReels.SelectedItems(0).Text
-                If selectedReelName.StartsWith("Imported") Then
-                    Dim itemDelete = cms.Items.Add("Delete")
-                    itemDelete.Tag = 2
-                    AddHandler itemDelete.Click, AddressOf DeleteCreditReel_Click
-                End If
+                Dim itemDelete = cms.Items.Add("Delete image set…")
+                AddHandler itemDelete.Click, AddressOf DeleteCreditReel_Click
+                Dim rename = cms.Items.Add("Rename image set…")
+                AddHandler rename.Click, Sub() RenameSet(lvEMCreditReels)
 
                 cms.Show(lvEMCreditReels, e.Location)
             End If
@@ -302,12 +299,10 @@ Public Class formReelType
                 itemExport.Tag = 1
                 AddHandler itemExport.Click, AddressOf btnExportLEDs_Click
 
-                Dim selectedReelName As String = lvLEDs.SelectedItems(0).Text
-                If selectedReelName.StartsWith("Imported") Then
-                    Dim itemDelete = cms.Items.Add("Delete")
-                    itemDelete.Tag = 2
-                    AddHandler itemDelete.Click, AddressOf DeleteLED_Click
-                End If
+                Dim itemDelete = cms.Items.Add("Delete image set…")
+                AddHandler itemDelete.Click, AddressOf DeleteLED_Click
+                Dim rename = cms.Items.Add("Rename image set…")
+                AddHandler rename.Click, Sub() RenameSet(lvLEDs)
 
                 cms.Show(lvLEDs, e.Location)
             End If
@@ -315,44 +310,150 @@ Public Class formReelType
     End Sub
 
     Private Sub DeleteReel_Click(sender As Object, e As EventArgs)
-
-        If B2SMessageBox.Show(String.Format("Do you really want to delete {0}?", lvEMReels.SelectedItems(0).Text), AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) = Windows.Forms.DialogResult.Yes Then
-            If GeneralData.currentData.ImportedReelImageSets IsNot Nothing Then
-                Dim index As Integer = lvEMReels.SelectedIndices(0) - DefaultEMReels.Length
-                GeneralData.currentData.RemoveImageSet(index, eImageSetType.ReelImages)
-                lvEMReels.Items.RemoveAt(lvEMReels.SelectedIndices(0))
-            End If
-        End If
+        DeleteSet(lvEMReels, eImageSetType.ReelImages, DefaultEMReels)
     End Sub
-
     Private Sub DeleteCreditReel_Click(sender As Object, e As EventArgs)
-        If B2SMessageBox.Show(String.Format("Do you really want to delete {0}?", lvEMCreditReels.SelectedItems(0).Text), AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) = Windows.Forms.DialogResult.Yes Then
-            If GeneralData.currentData.ImportedCreditReelImageSets IsNot Nothing Then
-                Dim index As Integer = lvEMCreditReels.SelectedIndices(0) - DefaultEMCreditReels.Length
-                GeneralData.currentData.RemoveImageSet(index, eImageSetType.CreditReelImages)
-                lvEMCreditReels.Items.RemoveAt(lvEMCreditReels.SelectedIndices(0))
-            End If
-        End If
+        DeleteSet(lvEMCreditReels, eImageSetType.CreditReelImages, DefaultEMCreditReels)
+    End Sub
+    Private Sub DeleteLED_Click(sender As Object, e As EventArgs)
+        DeleteSet(lvLEDs, eImageSetType.LEDImages, DefaultLEDs)
     End Sub
 
-    Private Sub DeleteLED_Click(sender As Object, e As EventArgs)
-        If B2SMessageBox.Show(String.Format("Do you really want to delete {0}?", lvLEDs.SelectedItems(0).Text), AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) = Windows.Forms.DialogResult.Yes Then
-            If GeneralData.currentData.ImportedLEDImageSets IsNot Nothing Then
-                Dim index As Integer = lvLEDs.SelectedIndices(0) - DefaultLEDs.Length
-                GeneralData.currentData.RemoveImageSet(index, eImageSetType.LEDImages)
-                lvLEDs.Items.RemoveAt(lvLEDs.SelectedIndices(0))
-            End If
-        End If
+    Private Function CollectionFor(type As eImageSetType) As GeneralData.Data.ImageSetCollection
+        Select Case type
+            Case eImageSetType.ReelImages : Return GeneralData.currentData.ImportedReelImageSets
+            Case eImageSetType.CreditReelImages : Return GeneralData.currentData.ImportedCreditReelImageSets
+            Case Else : Return GeneralData.currentData.ImportedLEDImageSets
+        End Select
+    End Function
+
+    Private Sub RefreshSetList(type As eImageSetType)
+        Select Case type
+            Case eImageSetType.ReelImages : FillReelListView(type, ilReels, lvEMReels, DefaultEMReels, True)
+            Case eImageSetType.CreditReelImages : FillReelListView(type, ilEMCeditReels, lvEMCreditReels, DefaultEMCreditReels, True)
+            Case Else : FillReelListView(type, ilLEDs, lvLEDs, DefaultLEDs, True)
+        End Select
     End Sub
+
+    Private Sub ConfigureImageLibraryMenu()
+        btnImportReels.Text = "Import EM Reels…"
+        btnImportLEDs.Text = "Import LEDs…"
+        btnImportCreditReels.Text = "Import Credit Reels…"
+        lblInfo.Text = "Choose a reel or LED set, or recognize digits 0–9 from one PDF/image sheet. Name and preview the extracted digits before saving. Right-click a set to rename or delete it; built-in sets can be restored from Import / Restore."
+    End Sub
+
+    Private Function ImportedKey(name As String) As Integer
+        Dim match = System.Text.RegularExpressions.Regex.Match(name, "^Imported(?:EMR_T|EMR_CT|LED_T)(\d+)_0+$")
+        If Not match.Success Then Throw New ArgumentException("Invalid imported image-set identifier.")
+        Return Integer.Parse(match.Groups(1).Value)
+    End Function
+
+    Private Sub DeleteSet(view As ListView, type As eImageSetType, defaults As String())
+        If view.SelectedItems.Count <> 1 Then Return
+        Dim item = view.SelectedItems(0)
+        If Backglass.currentData IsNot Nothing AndAlso
+            (Backglass.currentData.Scores.Any(Function(score) score.ReelType = item.Name) OrElse
+             Backglass.currentData.DMDScores.Any(Function(score) score.ReelType = item.Name) OrElse
+             ("," & Backglass.currentData.ReelType.Trim(","c) & ",").Contains("," & item.Name & ",")) Then
+            B2SMessageBox.Show("This set is used by the current backglass. Select another set for it before deleting.", AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+        Dim builtin = Not item.Name.StartsWith(ImportedStartString, StringComparison.Ordinal)
+        Dim explanation = If(builtin, "Remove this built-in set from the chooser? Its original artwork remains available to existing backglasses. Use Import / Restore to restore it.", "Delete this imported set from the library? A backup is saved first. Other saved backglasses are not rewritten.")
+        If B2SMessageBox.Show(item.Text & vbCrLf & vbCrLf & explanation, AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) <> DialogResult.Yes Then Return
+        Try
+            If builtin Then
+                DeleteBuiltInSet(item.Name)
+            Else
+                Dim collection = CollectionFor(type)
+                Dim index = collection.IndexOfKey(ImportedKey(item.Name))
+                If index < 0 Then Throw New InvalidOperationException("The image set no longer exists.")
+                BackupLibraryFile(ImportFileName)
+                GeneralData.currentData.RemoveImageSet(index, type)
+                ForgetImageSetName(item.Name)
+            End If
+            RefreshSetList(type)
+            IsDirty = True
+        Catch ex As Exception
+            B2SMessageBox.Show(ex.Message, AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
+    Private Sub RenameSet(view As ListView)
+        If view.SelectedItems.Count <> 1 Then Return
+        Dim item = view.SelectedItems(0)
+        Using dialog As New Form With {.Text = "Name image set", .ClientSize = New Size(360, 100), .StartPosition = FormStartPosition.CenterParent, .FormBorderStyle = FormBorderStyle.FixedDialog, .MaximizeBox = False, .MinimizeBox = False}
+            Dim editor As New TextBox With {.Text = item.Text, .MaxLength = 80, .Location = New Point(12, 12), .Width = 336}
+            Dim ok As New Button With {.Text = "Save name", .Location = New Point(180, 56), .DialogResult = DialogResult.OK}
+            Dim cancel As New Button With {.Text = "Cancel", .Location = New Point(272, 56), .DialogResult = DialogResult.Cancel}
+            dialog.Controls.AddRange(New Control() {editor, ok, cancel})
+            dialog.AcceptButton = ok
+            dialog.CancelButton = cancel
+            If dialog.ShowDialog(Me) <> DialogResult.OK Then Return
+            Try
+                NameImageSet(item.Name, editor.Text)
+                item.Text = editor.Text.Trim()
+            Catch ex As Exception
+                B2SMessageBox.Show(ex.Message, AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        End Using
+    End Sub
+
+    Private Sub ShowImportMenu(type As eImageSetType, button As Button)
+        Dim menu As New ContextMenuStrip
+        Dim category = If(type = eImageSetType.ReelImages, "EM reel", If(type = eImageSetType.CreditReelImages, "EM credit reel", "LED"))
+        AddHandler menu.Items.Add("Import " & category & " digit sheet (PDF or image)…").Click, Sub() ImportSheet(type)
+        AddHandler menu.Items.Add("Import individual images…").Click, Sub()
+                                                                        BackupLibraryFile(ImportFileName)
+                                                                        If type = eImageSetType.CreditReelImages Then
+                                                                            AddCreditReel()
+                                                                        Else
+                                                                            AddReelOrLEDSet(type)
+                                                                        End If
+                                                                    End Sub
+        AddHandler menu.Items.Add("Restore built-in image sets").Click, Sub()
+                                                                          Dim names = If(type = eImageSetType.ReelImages, DefaultEMReels, If(type = eImageSetType.CreditReelImages, DefaultEMCreditReels, DefaultLEDs))
+                                                                          RestoreBuiltInSets(names)
+                                                                          RefreshSetList(type)
+                                                                      End Sub
+        menu.Show(button, New Point(0, button.Height))
+    End Sub
+
+    Private Sub ImportSheet(type As eImageSetType)
+        Using preview As New formDigitSheetImport
+            preview.Text = If(type = eImageSetType.ReelImages, "Import EM Reel Digit Sheet", If(type = eImageSetType.CreditReelImages, "Import EM Credit Reel Digit Sheet", "Import LED Digit Sheet"))
+            If type = eImageSetType.CreditReelImages Then preview.ConfigureCreditRange()
+            If preview.ShowDialog(Me) <> DialogResult.OK Then Return
+            Dim images = preview.TakeImages()
+            Try
+                BackupLibraryFile(ImportFileName)
+                GeneralData.currentData.AddImageSet(images, type)
+                Dim key = CollectionFor(type).Keys.Last()
+                Dim name = ImportedStartString & If(type = eImageSetType.ReelImages, "EMR_T" & key & "_0", If(type = eImageSetType.CreditReelImages, "EMR_CT" & key & "_00", "LED_T" & key & "_0"))
+                NameImageSet(name, preview.SetName)
+                MarkProportionalImageSet(name)
+                RefreshSetList(type)
+                IsDirty = True
+            Catch ex As Exception
+                B2SMessageBox.Show(ex.Message, AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        End Using
+    End Sub
+
+    Private Function ExportIndex(view As ListView, type As eImageSetType, defaults As String()) As Integer
+        Dim name = view.SelectedItems(0).Name
+        If name.StartsWith(ImportedStartString, StringComparison.Ordinal) Then Return defaults.Length + CollectionFor(type).IndexOfKey(ImportedKey(name))
+        Return Array.IndexOf(defaults, name)
+    End Function
 
     Private Sub ImportReels_Click(sender As System.Object, e As System.EventArgs) Handles btnImportReels.Click
-        AddReelOrLEDSet(eImageSetType.ReelImages)
+        ShowImportMenu(eImageSetType.ReelImages, btnImportReels)
     End Sub
     Private Sub ImportCreditReels_Click(sender As System.Object, e As System.EventArgs) Handles btnImportCreditReels.Click
-        AddCreditReel()
+        ShowImportMenu(eImageSetType.CreditReelImages, btnImportCreditReels)
     End Sub
     Private Sub ImportLEDs_Click(sender As System.Object, e As System.EventArgs) Handles btnImportLEDs.Click
-        AddReelOrLEDSet(eImageSetType.LEDImages)
+        ShowImportMenu(eImageSetType.LEDImages, btnImportLEDs)
     End Sub
 
     Private Function GetAllRenderedLEDs() As Generic.List(Of Control)
@@ -485,10 +586,10 @@ Public Class formReelType
 
             ' Get the selected reel name and index
             Dim selectedReelName As String = lvEMReels.SelectedItems(0).Text
-            Dim selectedReelIndex As Integer = lvEMReels.SelectedIndices(0)
+            Dim selectedReelIndex As Integer = ExportIndex(lvEMReels, eImageSetType.ReelImages, DefaultEMReels)
 
             ' Path to the XML file
-            Dim xmlPath As String = "Projects\B2SBackglassDesigner.Import.xml"
+            Dim xmlPath As String = ImportFileName
 
             ' Call the export function
             If Not ExportReelImages(selectedReelName, selectedReelIndex, xmlPath) Then
@@ -509,10 +610,10 @@ Public Class formReelType
 
             ' Get the selected credit reel name and index
             Dim selectedCreditReelName As String = lvEMCreditReels.SelectedItems(0).Text
-            Dim selectedCreditReelIndex As Integer = lvEMCreditReels.SelectedIndices(0)
+            Dim selectedCreditReelIndex As Integer = ExportIndex(lvEMCreditReels, eImageSetType.CreditReelImages, DefaultEMCreditReels)
 
             ' Path to the XML file
-            Dim xmlPath As String = "Projects\B2SBackglassDesigner.Import.xml"
+            Dim xmlPath As String = ImportFileName
 
             ' Call the export function
             If Not ExportCreditReelImages(selectedCreditReelName, selectedCreditReelIndex, xmlPath) Then
@@ -533,10 +634,10 @@ Public Class formReelType
 
             ' Get the selected LED name and index
             Dim selectedLEDName As String = lvLEDs.SelectedItems(0).Text
-            Dim selectedLEDIndex As Integer = lvLEDs.SelectedIndices(0)
+            Dim selectedLEDIndex As Integer = ExportIndex(lvLEDs, eImageSetType.LEDImages, DefaultLEDs)
 
             ' Path to the XML file
-            Dim xmlPath As String = "Projects\B2SBackglassDesigner.Import.xml"
+            Dim xmlPath As String = ImportFileName
 
             ' Call the export function
             If Not ExportLEDImages(selectedLEDName, selectedLEDIndex, xmlPath) Then

@@ -864,6 +864,7 @@ Public Class B2STabPage
     Public Sub ReelsAndLEDs_SetReelType(ByVal name As String)
         If SelectedScore IsNot Nothing Then
             SelectedScore.ReelType = name
+            SelectedScore.KeepDigitAspect = IsProportionalImageSet(name)
             SelectedScore.ReelColor = Backglass.currentData.ReelColor
             SelectedScore.IsSingleReelSizeDirty = True
             BackglassData.IsDirty = True

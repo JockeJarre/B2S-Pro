@@ -1,10 +1,12 @@
-Imports System
+﻿Imports System
 Imports System.Windows.Forms
 Imports System.Drawing
 
 Public Class B2SReelBox
 
     Inherits B2SBaseBox
+
+    Public KeepDigitAspect As Boolean = False
 
     Public Enum eScoreType
         NotUsed = 0
@@ -100,6 +102,16 @@ Public Class B2SReelBox
     End Function
 
     Private Sub DrawReelImage(ByVal graphics As Graphics, ByVal reelImage As Image, ByVal cacheName As String)
+        If KeepDigitAspect Then
+            Using fitted As Bitmap = ReelImageSizing.Fit(reelImage, ClientSize)
+                DrawReelImageCore(graphics, fitted, cacheName & "|aspect")
+            End Using
+        Else
+            DrawReelImageCore(graphics, reelImage, cacheName)
+        End If
+    End Sub
+
+    Private Sub DrawReelImageCore(ByVal graphics As Graphics, ByVal reelImage As Image, ByVal cacheName As String)
         If graphics Is Nothing OrElse reelImage Is Nothing Then Return
 
         Dim imageToDraw As Image = reelImage

@@ -5,6 +5,7 @@
         Inherits InfoBase
 
         Public ReelType As String = String.Empty
+        Public KeepDigitAspect As Boolean = False
         Public ReelColor As Color = Nothing
         Public Digits As Integer = 0
         Public Spacing As Integer = 0
@@ -54,6 +55,7 @@
 
             Size = source.Size
             ReelType = source.ReelType
+            KeepDigitAspect = source.KeepDigitAspect
             ReelColor = source.ReelColor
             Digits = source.Digits
             Spacing = source.Spacing

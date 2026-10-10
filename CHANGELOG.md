@@ -2,6 +2,15 @@
 
 All notable B2S Pro changes are documented here. Release packages and checksums are published with each corresponding GitHub release.
 
+## 1.0.5 / Server 3.0.4 — 2026-10-10
+
+- Import one PDF or image sheet into EM reel, EM credit reel, or LED image sets, recognize 0–9, and preview the extracted artwork before saving.
+- Include offline OCR and PDF tools in the existing Designer package; setup installs them automatically without a separate download or tool installation.
+- Name and delete imported image sets, hide unwanted built-in sets, and restore built-in sets from each category's import menu.
+- Generate credit reel values through a selected maximum from 1–99, retaining zero for reset and preserving the original digit artwork.
+- Preserve sheet-imported digit proportions when resizing in the Designer and Server, with an optional saved setting that leaves legacy rendering unchanged.
+- Make eligible reel dragging and resizing faster while restoring the full-quality rendering when the drag ends.
+
 ## 1.0.4 / Server 3.0.3 — 2026-09-29
 
 - Add a trough option that releases every loaded ball to gravity on one trigger, keeps each dropped ball live where it settles, and returns one randomly selected available ball from that position through the normal entry trigger and path.

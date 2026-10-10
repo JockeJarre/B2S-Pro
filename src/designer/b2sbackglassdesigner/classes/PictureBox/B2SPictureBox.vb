@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Drawing.Imaging
 
 Public Class B2SPictureBox
@@ -154,6 +154,11 @@ Public Class B2SPictureBox
     Private dragPreviewActive As Boolean = False
     Private dragPreviewBase As Bitmap = Nothing
     Private ReadOnly dragPreviewBulbs As New Generic.List(Of Illumination.BulbInfo)()
+    Private ReadOnly dragPreviewScores As New Generic.List(Of ReelAndLED.ScoreInfo)()
+
+    Private Function IsDragPreviewScore(score As ReelAndLED.ScoreInfo) As Boolean
+        Return dragPreviewScores.Any(Function(item) Object.ReferenceEquals(item, score))
+    End Function
 
     Private Function IsDragPreviewBulb(ByVal bulb As Illumination.BulbInfo) As Boolean
         For Each previewBulb As Illumination.BulbInfo In dragPreviewBulbs
@@ -202,9 +207,29 @@ Public Class B2SPictureBox
         For Each selected As InfoBase In selectedItems
             If TypeOf selected Is Illumination.BulbInfo Then
                 dragPreviewBulbs.Add(DirectCast(selected, Illumination.BulbInfo))
+            ElseIf TypeOf selected Is ReelAndLED.ScoreInfo Then
+                dragPreviewScores.Add(DirectCast(selected, ReelAndLED.ScoreInfo))
             End If
         Next
-        If dragPreviewBulbs.Count = 0 Then Return
+        ' Keep the existing bulb/group preview unchanged. For scores, freeze
+        ' only when the selected reels form the top of the visible stack.
+        ' Upper lighting may sample a reel's pixels, so retain the normal
+        ' compositor where freezing it could change the layer result.
+        If dragPreviewBulbs.Count > 0 Then
+            dragPreviewScores.Clear()
+        ElseIf dragPreviewScores.Count > 0 Then
+            Dim selectedLayerSeen As Boolean = False
+            For Each item As Object In OrderedVisualItems()
+                If Not LayerManager.IsVisible(DirectCast(item, InfoBase)) Then Continue For
+                If TypeOf item Is ReelAndLED.ScoreInfo AndAlso IsDragPreviewScore(DirectCast(item, ReelAndLED.ScoreInfo)) Then
+                    selectedLayerSeen = True
+                ElseIf selectedLayerSeen Then
+                    dragPreviewScores.Clear()
+                    Return
+                End If
+            Next
+        End If
+        If dragPreviewBulbs.Count = 0 AndAlso dragPreviewScores.Count = 0 Then Return
 
         Dim nativeWidth As Integer = Me.Image.Width
         Dim nativeHeight As Integer = Me.Image.Height
@@ -224,7 +249,8 @@ Public Class B2SPictureBox
                         Dim bulb As Illumination.BulbInfo = DirectCast(item, Illumination.BulbInfo)
                         If Not IsDragPreviewBulb(bulb) Then DrawUnifiedBulbOrSnippetNative(layerGraphics, previewBase, bulb)
                     ElseIf TypeOf item Is ReelAndLED.ScoreInfo Then
-                        DrawScoreLayerNative(layerGraphics, DirectCast(item, ReelAndLED.ScoreInfo))
+                        Dim score As ReelAndLED.ScoreInfo = DirectCast(item, ReelAndLED.ScoreInfo)
+                        If Not IsDragPreviewScore(score) Then DrawScoreLayerNative(layerGraphics, score)
                     End If
                 Next
             End Using
@@ -239,6 +265,7 @@ Public Class B2SPictureBox
     Public Sub EndDragPreview(Optional ByVal invalidateCanvas As Boolean = True)
         dragPreviewActive = False
         dragPreviewBulbs.Clear()
+        dragPreviewScores.Clear()
         If dragPreviewBase IsNot Nothing Then
             dragPreviewBase.Dispose()
             dragPreviewBase = Nothing
@@ -263,7 +290,21 @@ Public Class B2SPictureBox
     End Sub
 
     Private Sub DrawLightweightDragPreviews(ByVal graphics As Graphics)
-        If Not dragPreviewActive OrElse dragPreviewBulbs.Count = 0 OrElse Mouse Is Nothing Then Return
+        If Not dragPreviewActive OrElse Mouse Is Nothing Then Return
+        If dragPreviewScores.Count > 0 AndAlso Me.Image IsNot Nothing Then
+            Dim state As Drawing2D.GraphicsState = graphics.Save()
+            Try
+                graphics.ScaleTransform(Me.ClientSize.Width / CSng(Me.Image.Width), Me.ClientSize.Height / CSng(Me.Image.Height))
+                For Each item As Object In OrderedVisualItems()
+                    If TypeOf item Is ReelAndLED.ScoreInfo AndAlso IsDragPreviewScore(DirectCast(item, ReelAndLED.ScoreInfo)) Then
+                        DrawScoreLayerNative(graphics, DirectCast(item, ReelAndLED.ScoreInfo))
+                    End If
+                Next
+            Finally
+                graphics.Restore(state)
+            End Try
+        End If
+        If dragPreviewBulbs.Count = 0 Then Return
         Dim factor As Double = Mouse.factor
         For Each bulb As Illumination.BulbInfo In dragPreviewBulbs
             If bulb Is Nothing OrElse Not LayerManager.IsVisible(bulb) Then Continue For
@@ -872,7 +913,7 @@ Public Class B2SPictureBox
                         Dim x As Single = rect.X + 1
                         Dim y As Integer = rect.Y + 1
                         Dim newsize As Size = New Size(.SingleReelSize.Width, .SingleReelSize.Height)
-                        Dim image As Image = GetReelImage(.ReelType, .ReelColor, Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newsize).Resized(newsize)
+                        Dim image As Image = ResizeScoreReel(GetReelImage(.ReelType, .ReelColor, Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newsize), newsize, Backglass.currentScores(index))
                         If image IsNot Nothing Then
                             For i As Integer = 1 To .Digits
                                 pe.Graphics.DrawImage(image, New Point(x, y))
@@ -1337,6 +1378,17 @@ Public Class B2SPictureBox
     Private Sub DrawPerspectiveBitmap(ByVal graphics As Graphics, ByVal bitmap As Bitmap, ByVal quad As PointF())
         If graphics Is Nothing OrElse bitmap Is Nothing OrElse quad Is Nothing OrElse quad.Length <> 4 Then Return
         Dim strips As Integer = Math.Max(24, Math.Min(160, bitmap.Width))
+        If dragPreviewActive AndAlso dragPreviewScores.Count > 0 Then
+            ' A flat/rotated rectangle is one affine image draw. Reserve the
+            ' perspective strips for an actual trapezoid during mouse movement.
+            If Math.Abs(quad(0).X + quad(2).X - quad(1).X - quad(3).X) < 0.01F AndAlso
+               Math.Abs(quad(0).Y + quad(2).Y - quad(1).Y - quad(3).Y) < 0.01F Then
+                graphics.DrawImage(bitmap, New PointF() {quad(0), quad(1), quad(3)},
+                                   New RectangleF(0, 0, bitmap.Width, bitmap.Height), GraphicsUnit.Pixel)
+                Return
+            End If
+            strips = 24
+        End If
         Dim oldMode As Drawing2D.InterpolationMode = graphics.InterpolationMode
         graphics.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic
         Try
@@ -1370,7 +1422,7 @@ Public Class B2SPictureBox
         Dim height As Integer = rect.Height - 1
         If score.PerfectScaleWidthFix Then height = CInt(My.Resources.LED_0.Height / My.Resources.LED_0.Width * width)
         Dim newSize As New Size(Math.Max(1, CInt(width)), Math.Max(1, height))
-        Dim reelImage As Image = GetReelImage(score.ReelType, score.ReelColor, Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newSize).Resized(newSize)
+        Dim reelImage As Image = ResizeScoreReel(GetReelImage(score.ReelType, score.ReelColor, Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newSize), newSize, score)
         If reelImage Is Nothing Then Return
         Try
             If score.ReelIlluLocation <> eReelIlluminationLocation.Off AndAlso score.ReelIlluIntensity > 0 Then
@@ -2046,7 +2098,7 @@ Public Class B2SPictureBox
                             Dim x As Single = rect.X + 1
                             Dim y As Integer = rect.Y + 1
                             Dim newsize As Size = New Size(width, height)
-                            Dim image As Image = GetReelImage(.ReelType, Color.FromArgb(0, 0, 0), Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newsize).Resized(newsize)
+                            Dim image As Image = ResizeScoreReel(GetReelImage(.ReelType, Color.FromArgb(0, 0, 0), Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newsize), newsize, score)
                             If image IsNot Nothing Then
                                 For i As Integer = 1 To .Digits
                                     gr.DrawImage(image, New Point(x, y))
@@ -2101,7 +2153,7 @@ Public Class B2SPictureBox
                             Dim x As Single = rect.X + 1
                             Dim y As Integer = rect.Y + 1
                             Dim newsize As Size = New Size(width, height)
-                            Dim image As Image = GetReelImage(.ReelType, .ReelColor, Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newsize).Resized(newsize)
+                            Dim image As Image = ResizeScoreReel(GetReelImage(.ReelType, .ReelColor, Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newsize), newsize, score)
                             If image IsNot Nothing Then
                                 For i As Integer = 1 To .Digits
                                     gr.DrawImage(image, New Point(x, y))

@@ -1,4 +1,4 @@
-#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
+﻿#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
 Imports System.Drawing
 Imports System.Drawing.Imaging
 Imports System.IO
@@ -3199,6 +3199,7 @@ Public Class formBackglass
                             setid = CInt(innerNode.Attributes("ReelIlluImageSet").InnerText)
                         End If
                         Dim reeltype As String = innerNode.Attributes("ReelType").InnerText
+                        Dim keepDigitAspect As Boolean = innerNode.Attributes("KeepDigitAspect") IsNot Nothing AndAlso innerNode.Attributes("KeepDigitAspect").InnerText = "1"
                         Dim reellitcolor As Color = String2Color(innerNode.Attributes("ReelLitColor").InnerText)
                         Dim reeldarkcolor As Color = String2Color(innerNode.Attributes("ReelDarkColor").InnerText)
                         Dim d7glow As Single = CSng(innerNode.Attributes("Glow").InnerText) / 100
@@ -3471,6 +3472,7 @@ Public Class formBackglass
                                 reel.RomIDType = romidtype
                                 reel.RomIDValue = romidvalue
                                 reel.BehindCanvas = behindCanvas
+                                reel.KeepDigitAspect = keepDigitAspect
                                 reel.Reel3DEnabled = reel3DEnabled
                                 reel.Reel3DBrightness = reel3DBrightness
                                 reel.Reel3DTemperature = reel3DTemperature

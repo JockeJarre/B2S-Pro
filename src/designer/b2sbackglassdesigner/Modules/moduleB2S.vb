@@ -149,9 +149,9 @@ Module moduleB2S
         ' get images of reels and leds into the image list
         Dim i As Integer = ilReelsAndLEDs.Images.Count
         For Each item As String In ReelLEDList
-            If Not showselected OrElse selected.Contains("," & item & ",") Then
+            If (showselected AndAlso selected.Contains("," & item & ",")) OrElse (Not showselected AndAlso Not IsBuiltInSetDeleted(item)) Then
                 ilReelsAndLEDs.Images.Add(item, My.Resources.ResourceManager.GetObject(item))
-                lvReelsAndLEDs.Items.Add(item, If(item.Substring(0, 3) = "LED", My.Resources.ReelsAndLEDs_TypeLED, If(item.Substring(0, 5) = "EMR_C", My.Resources.ReelsAndLEDs_TypeEMCreditReel, My.Resources.ReelsAndLEDs_TypeEMReel)) & If(Not showselected, " " & (i + 1).ToString(), ""), i)
+                lvReelsAndLEDs.Items.Add(item, ImageSetDisplayName(item, If(item.Substring(0, 3) = "LED", My.Resources.ReelsAndLEDs_TypeLED, If(item.Substring(0, 5) = "EMR_C", My.Resources.ReelsAndLEDs_TypeEMCreditReel, My.Resources.ReelsAndLEDs_TypeEMReel)) & If(Not showselected, " " & (i + 1).ToString(), "")), i)
                 i += 1
             End If
         Next
@@ -178,7 +178,7 @@ Module moduleB2S
                 Dim item As String = String.Format(key, imageset.Key.ToString())
                 If Not showselected OrElse selected.Contains("," & item & ",") Then
                     ilReelsAndLEDs.Images.Add(item, imageset.Value(0))
-                    lvReelsAndLEDs.Items.Add(item, name & " " & (i + 1).ToString(), i)
+                    lvReelsAndLEDs.Items.Add(item, ImageSetDisplayName(item, name & " " & (i + 1).ToString()), i)
                     i += 1
                 End If
             Next
@@ -282,9 +282,9 @@ Module moduleB2S
             Return image
         ElseIf reeltype.StartsWith(ImportedStartString) Then
             Try
-                Select Case reeltype.Substring(8, 5)
+                Select Case reeltype.Substring(8, If(reeltype.StartsWith(ImportedStartString & "EMR_CT"), 6, 5))
                     Case "EMR_T" : Return GeneralData.currentData.ImportedReelImageSets(CInt(reeltype.Substring(13).Replace("_0", "")))(0)
-                    Case "EMR_CT" : Return GeneralData.currentData.ImportedCreditReelImageSets(CInt(reeltype.Substring(14).Replace("_0", "")))(0)
+                    Case "EMR_CT" : Return GeneralData.currentData.ImportedCreditReelImageSets(CInt(reeltype.Substring(14).Replace("_00", "")))(0)
                     Case "LED_T" : Return GeneralData.currentData.ImportedLEDImageSets(CInt(reeltype.Substring(13).Replace("_0", "")))(0)
                     Case Else : Return Nothing
                 End Select
