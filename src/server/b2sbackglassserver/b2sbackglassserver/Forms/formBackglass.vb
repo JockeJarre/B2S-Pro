@@ -1,4 +1,4 @@
-﻿#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
+#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
 Imports System.Drawing
 Imports System.Drawing.Imaging
 Imports System.IO
@@ -494,9 +494,12 @@ Public Class formBackglass
         ' Paint the B2S Pro opt-in backing here so transparent canvas pixels
         ' composite over the neutral backing instead of the native black surface.
         If b2sProTransparentCanvasBacking.HasValue Then
+            Dim backingState As Drawing2D.GraphicsState = e.Graphics.Save()
+            e.Graphics.SmoothingMode = Drawing2D.SmoothingMode.None
             Using backingBrush As New SolidBrush(b2sProTransparentCanvasBacking.Value)
                 e.Graphics.FillRectangle(backingBrush, e.ClipRectangle)
             End Using
+            e.Graphics.Restore(backingState)
         End If
 
         ' draw background and illumination images
@@ -510,7 +513,7 @@ Public Class formBackglass
                     clip.Exclude(ledarea.Value.Rect)
                 End If
             Next
-            e.Graphics.SetClip(clip, Drawing2D.CombineMode.Replace)
+            e.Graphics.SetClip(clip, If(b2sProTransparentCanvasBacking.HasValue, Drawing2D.CombineMode.Intersect, Drawing2D.CombineMode.Replace))
             End Using
 
             ' Draw behind-canvas snippets first. The stationary backglass is then

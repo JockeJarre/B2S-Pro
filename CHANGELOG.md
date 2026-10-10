@@ -4,6 +4,8 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 
 ## 1.0.5 / Server 3.0.4 — 2026-10-10
 
+- Correct credit-pointer image trails on transparent B2S Pro canvases by clearing repaint edges fully and preserving the cleared clip region. Confirmed in VPX with Gottlieb 300; legacy rendering retains its existing path.
+
 - Import one PDF or image sheet into EM reel, EM credit reel, or LED image sets, recognize 0–9, and preview the extracted artwork before saving.
 - Include offline OCR and PDF tools in the existing Designer package; setup installs them automatically without a separate download or tool installation.
 - Name and delete imported image sets, hide unwanted built-in sets, and restore built-in sets from each category's import menu.
