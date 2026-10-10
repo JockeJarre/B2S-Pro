@@ -7,6 +7,8 @@ Public Class formTextSettingsEditor
     Inherits B2SThemedForm
 
     Private ReadOnly bulb As Illumination.BulbInfo
+    Private ReadOnly selectedBulbs As New List(Of Illumination.BulbInfo)()
+    Private ReadOnly additionalOriginals As New Dictionary(Of Illumination.BulbInfo, Illumination.BulbInfo)()
     Private ReadOnly originalText As String
     Private ReadOnly originalFontName As String
     Private ReadOnly originalFontSize As Single
@@ -39,9 +41,22 @@ Public Class formTextSettingsEditor
     Private previewPanStartOffset As Point
     Private initializing As Boolean = True
 
-    Public Sub New(ByVal selected As Illumination.BulbInfo)
+    Public Sub New(ByVal selected As Illumination.BulbInfo, Optional ByVal multiSelection As IEnumerable(Of Illumination.BulbInfo) = Nothing)
         If selected Is Nothing Then Throw New ArgumentNullException("selected")
         bulb = selected
+        If multiSelection IsNot Nothing Then
+            For Each item As Illumination.BulbInfo In multiSelection
+                If item IsNot Nothing AndAlso Not item.IsImageSnippit AndAlso Not String.IsNullOrEmpty(item.Text) AndAlso Not selectedBulbs.Contains(item) Then selectedBulbs.Add(item)
+            Next
+        End If
+        If Not selectedBulbs.Contains(bulb) Then selectedBulbs.Add(bulb)
+        For Each item As Illumination.BulbInfo In selectedBulbs
+            If Not Object.ReferenceEquals(item, bulb) Then
+                Dim snapshot As New Illumination.BulbInfo()
+                CopyTextAppearance(item, snapshot)
+                additionalOriginals.Add(item, snapshot)
+            End If
+        Next
         originalText = bulb.Text
         originalFontName = bulb.FontName
         originalFontSize = bulb.FontSize
@@ -283,6 +298,11 @@ Public Class formTextSettingsEditor
                 bulb.FontName = selectedFont.Name
                 bulb.FontSize = selectedFont.SizeInPoints
                 bulb.FontStyle = selectedFont.Style
+                For Each item As Illumination.BulbInfo In selectedBulbs
+                    item.FontName = bulb.FontName
+                    item.FontSize = bulb.FontSize
+                    item.FontStyle = bulb.FontStyle
+                Next
                 fontButton.Text = FontCaption()
                 MarkChanged()
             End Using
@@ -300,6 +320,9 @@ Public Class formTextSettingsEditor
         Else
             bulb.TextAlignment = Illumination.eTextAlignment.Center
         End If
+        For Each item As Illumination.BulbInfo In selectedBulbs
+            item.TextAlignment = bulb.TextAlignment
+        Next
         MarkChanged()
     End Sub
 
@@ -311,10 +334,12 @@ Public Class formTextSettingsEditor
 
     Private Sub TextControlChanged(ByVal sender As Object, ByVal e As EventArgs)
         If initializing Then Return
-        bulb.Text = textValue.Text
-        bulb.DodgeColor = TranslateIndex2DodgeColor(dodgeColor.SelectedIndex)
-        bulb.GlowIntensity = brightness.Value
-        bulb.LightTemperature = temperature.Value
+        For Each item As Illumination.BulbInfo In selectedBulbs
+            If Object.ReferenceEquals(sender, textValue) Then item.Text = textValue.Text
+            If Object.ReferenceEquals(sender, dodgeColor) Then item.DodgeColor = TranslateIndex2DodgeColor(dodgeColor.SelectedIndex)
+            If Object.ReferenceEquals(sender, brightness) Then item.GlowIntensity = brightness.Value
+            If Object.ReferenceEquals(sender, temperature) Then item.LightTemperature = temperature.Value
+        Next
         MarkChanged()
     End Sub
 
@@ -329,7 +354,9 @@ Public Class formTextSettingsEditor
     End Sub
 
     Private Sub MarkChanged()
-        bulb.IsIlluminatedImageDirty = True
+        For Each item As Illumination.BulbInfo In selectedBulbs
+            item.IsIlluminatedImageDirty = True
+        Next
         If Backglass.currentData IsNot Nothing Then Backglass.currentData.IsDirty = True
         If Backglass.currentTabPage IsNot Nothing Then
             Backglass.currentTabPage.RefreshEditorLighting()
@@ -363,12 +390,12 @@ Public Class formTextSettingsEditor
         Dim data = Backglass.currentTabPage.BackglassData
         Dim items As IEnumerable(Of Illumination.BulbInfo) = If(data.IsDMDImageShown, data.DMDBulbs, data.Bulbs)
         For Each item As Illumination.BulbInfo In items
-            If Not Object.ReferenceEquals(item, bulb) AndAlso Not item.IsImageSnippit Then excluded.Add(item)
+            If Not selectedBulbs.Contains(item) AndAlso Not item.IsImageSnippit Then excluded.Add(item)
         Next
 
-        Dim rendered As Bitmap = canvas.CreateLayeredPreviewImageForBulbs(excluded, New Illumination.BulbInfo() {bulb})
+        Dim rendered As Bitmap = canvas.CreateLayeredPreviewImageForBulbs(excluded, selectedBulbs)
         SetPreviewSource(rendered)
-        previewStatus.Text = "Live preview — the selected text is on; other lights are off."
+        previewStatus.Text = "Live preview — selected text boxes are on; other lights are off."
     End Sub
 
     Private Sub SetPreviewSource(ByVal image As Bitmap)
@@ -495,6 +522,10 @@ Public Class formTextSettingsEditor
     Protected Overrides Sub OnFormClosing(ByVal e As FormClosingEventArgs)
         If previewTimer IsNot Nothing Then previewTimer.Stop()
         If DialogResult = DialogResult.Cancel Then
+            For Each entry As KeyValuePair(Of Illumination.BulbInfo, Illumination.BulbInfo) In additionalOriginals
+                CopyTextAppearance(entry.Value, entry.Key)
+                entry.Key.IsIlluminatedImageDirty = True
+            Next
             bulb.Text = originalText
             bulb.FontName = originalFontName
             bulb.FontSize = originalFontSize
@@ -519,5 +550,16 @@ Public Class formTextSettingsEditor
         preview.Image = Nothing
         If oldPreview IsNot Nothing Then oldPreview.Dispose()
         MyBase.OnFormClosing(e)
+    End Sub
+
+    Private Shared Sub CopyTextAppearance(ByVal source As Illumination.BulbInfo, ByVal target As Illumination.BulbInfo)
+        target.Text = source.Text
+        target.FontName = source.FontName
+        target.FontSize = source.FontSize
+        target.FontStyle = source.FontStyle
+        target.TextAlignment = source.TextAlignment
+        target.DodgeColor = source.DodgeColor
+        target.GlowIntensity = source.GlowIntensity
+        target.LightTemperature = source.LightTemperature
     End Sub
 End Class

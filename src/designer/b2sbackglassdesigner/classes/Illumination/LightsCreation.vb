@@ -1,4 +1,4 @@
-﻿'=== Phase 2 Unified Artwork Pipeline ===
+'=== Phase 2 Unified Artwork Pipeline ===
 Imports System
 Imports System.Drawing.Imaging
 Imports System.Runtime.InteropServices
@@ -827,6 +827,7 @@ Namespace Illumination
                 ' every glyph channel before ColorDodge runs, making every Dodge Color
                 ' produce the same white text. Non-text lights retain the established
                 ' Light Color and Dodge Color merge unchanged.
+                If Not String.IsNullOrEmpty(text) AndAlso dodgecolor.ToArgb() = Color.Black.ToArgb() Then dodgecolor = Nothing
                 Dim mergeLightColor As Color = lightcolor
                 If Not String.IsNullOrEmpty(text) AndAlso dodgecolor <> Nothing Then mergeLightColor = dodgecolor
                 MergeLayers(currentimage, image, effectiveIntensity, mergeLightColor, dodgecolor)

@@ -2,6 +2,16 @@
 
 All notable B2S Pro changes are documented here. Release packages and checksums are published with each corresponding GitHub release.
 
+## 1.0.6 / Server 3.0.5 — 2026-10-10
+
+- Apply Text Settings changes to every selected text box and illuminate the whole selected group in the live preview, preserving each box's lettering and routing.
+- Restore legacy text with an old black Dodge Color value automatically, without requiring brightness-slider changes or resaving the backglass.
+- Restore cached reel artwork during dragging and keep all score displays responsive while preserving their layer order, including stationary displays above the selected score.
+- Keep complete tilted reel previews, including 3D glass, behind the canvas when Behind Canvas is selected.
+- Avoid redundant full-canvas repaints when adjusting score rotation and perspective; retain full-quality final rendering after release.
+- Retain bundled offline OCR/PDF imports, digit proportions, and the previously confirmed transparent credit-pointer repaint correction.
+- Update both setup programs and release metadata. Server behavior remains unchanged from 3.0.4.
+
 ## 1.0.5 / Server 3.0.4 — 2026-10-10
 
 - Correct credit-pointer image trails on transparent B2S Pro canvases by clearing repaint edges fully and preserving the cleared clip region. Confirmed in VPX with Gottlieb 300; legacy rendering retains its existing path.

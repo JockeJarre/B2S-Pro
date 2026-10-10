@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Drawing.Imaging
 
 Public Class B2SPictureBox
@@ -153,8 +153,30 @@ Public Class B2SPictureBox
     ' paints then draw only lightweight previews at their current positions.
     Private dragPreviewActive As Boolean = False
     Private dragPreviewBase As Bitmap = Nothing
+    Private dragPreviewCanvasPixels As Byte()
+    Private dragPreviewCanvasSize As Size
     Private ReadOnly dragPreviewBulbs As New Generic.List(Of Illumination.BulbInfo)()
     Private ReadOnly dragPreviewScores As New Generic.List(Of ReelAndLED.ScoreInfo)()
+
+    Private ReadOnly dragPreviewScoreImages As New Generic.List(Of ScoreDragPreview)()
+
+    Private Class ScoreDragPreview
+        Public Score As ReelAndLED.ScoreInfo
+        Public Content As Bitmap
+        Public GlassOverlay As Bitmap
+        Public RenderedSize As Size
+        Public FrozenFinal As Bitmap
+        Public FrozenBounds As Rectangle
+
+        Public Sub Dispose()
+            If FrozenFinal IsNot Nothing Then FrozenFinal.Dispose()
+            FrozenFinal = Nothing
+            If Content IsNot Nothing Then Content.Dispose()
+            If GlassOverlay IsNot Nothing Then GlassOverlay.Dispose()
+            Content = Nothing
+            GlassOverlay = Nothing
+        End Sub
+    End Class
 
     Private Function IsDragPreviewScore(score As ReelAndLED.ScoreInfo) As Boolean
         Return dragPreviewScores.Any(Function(item) Object.ReferenceEquals(item, score))
@@ -223,7 +245,7 @@ Public Class B2SPictureBox
                 If Not LayerManager.IsVisible(DirectCast(item, InfoBase)) Then Continue For
                 If TypeOf item Is ReelAndLED.ScoreInfo AndAlso IsDragPreviewScore(DirectCast(item, ReelAndLED.ScoreInfo)) Then
                     selectedLayerSeen = True
-                ElseIf selectedLayerSeen Then
+                ElseIf selectedLayerSeen AndAlso TypeOf item Is Illumination.BulbInfo Then
                     dragPreviewScores.Clear()
                     Return
                 End If
@@ -234,6 +256,36 @@ Public Class B2SPictureBox
         Dim nativeWidth As Integer = Me.Image.Width
         Dim nativeHeight As Integer = Me.Image.Height
         If nativeWidth <= 0 OrElse nativeHeight <= 0 Then Return
+        Dim selectedScoreSeen As Boolean = False
+        For Each item As Object In OrderedVisualItems()
+            If Not TypeOf item Is ReelAndLED.ScoreInfo Then Continue For
+            Dim score As ReelAndLED.ScoreInfo = DirectCast(item, ReelAndLED.ScoreInfo)
+            If IsDragPreviewScore(score) Then selectedScoreSeen = True
+            If Not selectedScoreSeen OrElse Not LayerManager.IsVisible(score) Then Continue For
+            If IsDragPreviewScore(score) Then
+                Dim glassOverlay As Bitmap = Nothing
+                Dim content As Bitmap = CreateScoreContentBitmap(score, glassOverlay)
+                dragPreviewScoreImages.Add(New ScoreDragPreview With {
+                    .Score = score, .Content = content, .GlassOverlay = glassOverlay, .RenderedSize = score.Size})
+            Else
+                ' Preserve stationary upper displays exactly as the normal renderer
+                ' draws them, rather than flattening them beneath the moving score.
+                Dim points As PointF() = ScorePerspectivePoints(score, 1.0F)
+                Dim bounds As Rectangle = Rectangle.FromLTRB(
+                    CInt(Math.Floor(points.Min(Function(point) point.X))) - 2,
+                    CInt(Math.Floor(points.Min(Function(point) point.Y))) - 2,
+                    CInt(Math.Ceiling(points.Max(Function(point) point.X))) + 2,
+                    CInt(Math.Ceiling(points.Max(Function(point) point.Y))) + 2)
+                If bounds.Width <= 0 OrElse bounds.Height <= 0 Then Continue For
+                Dim frozen As New Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb)
+                Using frozenGraphics As Graphics = Graphics.FromImage(frozen)
+                    frozenGraphics.TranslateTransform(-bounds.X, -bounds.Y)
+                    DrawScoreLayerNative(frozenGraphics, score)
+                End Using
+                dragPreviewScoreImages.Add(New ScoreDragPreview With {
+                    .Score = score, .FrozenFinal = frozen, .FrozenBounds = bounds})
+            End If
+        Next
         Dim previewBase As New Bitmap(nativeWidth, nativeHeight, PixelFormat.Format32bppArgb)
         Try
             Using layerGraphics As Graphics = Graphics.FromImage(previewBase)
@@ -250,12 +302,20 @@ Public Class B2SPictureBox
                         If Not IsDragPreviewBulb(bulb) Then DrawUnifiedBulbOrSnippetNative(layerGraphics, previewBase, bulb)
                     ElseIf TypeOf item Is ReelAndLED.ScoreInfo Then
                         Dim score As ReelAndLED.ScoreInfo = DirectCast(item, ReelAndLED.ScoreInfo)
-                        If Not IsDragPreviewScore(score) Then DrawScoreLayerNative(layerGraphics, score)
+                        If Not dragPreviewScoreImages.Any(Function(preview) Object.ReferenceEquals(preview.Score, score)) Then DrawScoreLayerNative(layerGraphics, score)
                     End If
                 Next
             End Using
-            dragPreviewBase = previewBase
-            previewBase = Nothing
+            If dragPreviewScores.Any(Function(score) score.BehindCanvas) Then CacheScoreDragCanvas()
+            If dragPreviewScores.Count > 0 Then
+            dragPreviewBase = New Bitmap(Math.Max(1, ClientSize.Width), Math.Max(1, ClientSize.Height), PixelFormat.Format32bppArgb)
+            Using displayGraphics As Graphics = Graphics.FromImage(dragPreviewBase)
+                displayGraphics.DrawImage(previewBase, New Rectangle(Point.Empty, dragPreviewBase.Size))
+            End Using
+            Else
+                dragPreviewBase = previewBase
+                previewBase = Nothing
+            End If
             dragPreviewActive = True
         Finally
             If previewBase IsNot Nothing Then previewBase.Dispose()
@@ -264,8 +324,13 @@ Public Class B2SPictureBox
 
     Public Sub EndDragPreview(Optional ByVal invalidateCanvas As Boolean = True)
         dragPreviewActive = False
+        dragPreviewCanvasPixels = Nothing
         dragPreviewBulbs.Clear()
         dragPreviewScores.Clear()
+        For Each preview As ScoreDragPreview In dragPreviewScoreImages
+            preview.Dispose()
+        Next
+        dragPreviewScoreImages.Clear()
         If dragPreviewBase IsNot Nothing Then
             dragPreviewBase.Dispose()
             dragPreviewBase = Nothing
@@ -296,8 +361,15 @@ Public Class B2SPictureBox
             Try
                 graphics.ScaleTransform(Me.ClientSize.Width / CSng(Me.Image.Width), Me.ClientSize.Height / CSng(Me.Image.Height))
                 For Each item As Object In OrderedVisualItems()
-                    If TypeOf item Is ReelAndLED.ScoreInfo AndAlso IsDragPreviewScore(DirectCast(item, ReelAndLED.ScoreInfo)) Then
-                        DrawScoreLayerNative(graphics, DirectCast(item, ReelAndLED.ScoreInfo))
+                    If TypeOf item Is ReelAndLED.ScoreInfo Then
+                        Dim preview As ScoreDragPreview = dragPreviewScoreImages.FirstOrDefault(Function(value) Object.ReferenceEquals(value.Score, item))
+                        If preview IsNot Nothing Then
+                            If preview.FrozenFinal IsNot Nothing Then
+                                graphics.DrawImageUnscaled(preview.FrozenFinal, preview.FrozenBounds.Location)
+                            Else
+                                DrawScoreDragPreview(graphics, preview, 1.0F)
+                            End If
+                        End If
                     End If
                 Next
             Finally
@@ -1089,7 +1161,11 @@ Public Class B2SPictureBox
 
     Private Sub DrawUnifiedVisualLayers(ByVal graphics As Graphics)
         If dragPreviewActive AndAlso dragPreviewBase IsNot Nothing Then
-            graphics.DrawImage(dragPreviewBase, New Rectangle(0, 0, Me.ClientSize.Width, Me.ClientSize.Height))
+            If dragPreviewScores.Count > 0 AndAlso dragPreviewBase.Size = ClientSize Then
+                graphics.DrawImageUnscaled(dragPreviewBase, 0, 0)
+            Else
+                graphics.DrawImage(dragPreviewBase, New Rectangle(Point.Empty, ClientSize))
+            End If
             DrawLightweightDragPreviews(graphics)
             Return
         End If
@@ -1406,6 +1482,192 @@ Public Class B2SPictureBox
         Finally
             graphics.InterpolationMode = oldMode
         End Try
+    End Sub
+
+    Private Function CreateScoreContentBitmap(ByVal score As ReelAndLED.ScoreInfo,
+                                              ByRef glassOverlay As Bitmap) As Bitmap
+        glassOverlay = Nothing
+        If score Is Nothing OrElse score.Digits <= 0 Then Return Nothing
+        Dim rect As New Rectangle(score.Location, score.Size)
+        If rect.Width <= 1 OrElse rect.Height <= 1 Then Return Nothing
+
+        Dim width As Single = ((rect.Width - score.Spacing / 2.0F * (score.Digits - 1)) / score.Digits)
+        Do While width * score.Digits > rect.Width - 1 AndAlso width > 1
+            width -= 1
+        Loop
+        Dim height As Integer = rect.Height - 1
+        If score.PerfectScaleWidthFix Then height = CInt(My.Resources.LED_0.Height / My.Resources.LED_0.Width * width)
+        Dim newSize As New Size(Math.Max(1, CInt(width)), Math.Max(1, height))
+        Dim reelImage As Image = ResizeScoreReel(GetReelImage(score.ReelType, score.ReelColor, Backglass.currentData.UseDream7LEDs, Backglass.currentData.D7Thickness, Backglass.currentData.D7Shear, Backglass.currentData.D7Glow, newSize), newSize, score)
+        If reelImage Is Nothing Then Return Nothing
+        Dim scoreBitmap As Bitmap = Nothing
+        Try
+            If score.ReelIlluLocation <> eReelIlluminationLocation.Off AndAlso score.ReelIlluIntensity > 0 Then
+                Dim illuminated As Image = Lights.DrawIlluminatedReelImage(reelImage, score.ReelIlluIntensity, score.ReelIlluLocation)
+                If illuminated IsNot Nothing AndAlso Not Object.ReferenceEquals(illuminated, reelImage) Then
+                    reelImage.Dispose()
+                    reelImage = illuminated
+                End If
+            End If
+            If score.Reel3DEnabled Then
+                Dim enhanced As Bitmap = ReelAndLED.Reel3DEffect.RenderReel(reelImage,
+                                                                           score.Reel3DBrightness,
+                                                                           score.Reel3DTemperature,
+                                                                           score.Reel3DDepth)
+                If enhanced IsNot Nothing Then
+                    reelImage.Dispose()
+                    reelImage = enhanced
+                End If
+            End If
+            scoreBitmap = New Bitmap(Math.Max(2, rect.Width), Math.Max(2, rect.Height), Imaging.PixelFormat.Format32bppArgb)
+            Using sg As Graphics = Graphics.FromImage(scoreBitmap)
+                sg.Clear(Color.Transparent)
+                sg.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic
+                Dim x As Single = 1.0F
+                For i As Integer = 1 To score.Digits
+                    sg.DrawImage(reelImage, New PointF(x, 1.0F))
+                    x += width + score.Spacing / 2.0F
+                Next
+            End Using
+            If score.Reel3DEnabled Then
+                glassOverlay = New Bitmap(scoreBitmap.Width, scoreBitmap.Height, Imaging.PixelFormat.Format32bppArgb)
+                Using overlayGraphics As Graphics = Graphics.FromImage(glassOverlay)
+                    overlayGraphics.Clear(Color.Transparent)
+                    ReelAndLED.Reel3DEffect.DrawWindowOverlay(overlayGraphics,
+                                                             New Rectangle(0, 0, glassOverlay.Width, glassOverlay.Height),
+                                                             score.Reel3DDepth,
+                                                             score.Reel3DGlass)
+                End Using
+            End If
+            Return scoreBitmap
+        Catch
+            If scoreBitmap IsNot Nothing Then scoreBitmap.Dispose()
+            If glassOverlay IsNot Nothing Then
+                glassOverlay.Dispose()
+                glassOverlay = Nothing
+            End If
+            Throw
+        Finally
+            reelImage.Dispose()
+        End Try
+    End Function
+
+    Private Sub CacheScoreDragCanvas()
+        Using canvas As New Bitmap(Me.Image.Width, Me.Image.Height, PixelFormat.Format32bppArgb)
+            Using canvasGraphics As Graphics = Graphics.FromImage(canvas)
+                canvasGraphics.CompositingMode = Drawing2D.CompositingMode.SourceCopy
+                canvasGraphics.DrawImageUnscaled(Me.Image, 0, 0)
+            End Using
+            dragPreviewCanvasSize = canvas.Size
+            Dim data As BitmapData = canvas.LockBits(New Rectangle(Point.Empty, canvas.Size), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb)
+            Try
+                dragPreviewCanvasPixels = New Byte(canvas.Width * canvas.Height * 4 - 1) {}
+                For y As Integer = 0 To canvas.Height - 1
+                    Runtime.InteropServices.Marshal.Copy(IntPtr.Add(data.Scan0, y * data.Stride), dragPreviewCanvasPixels, y * canvas.Width * 4, canvas.Width * 4)
+                Next
+            Finally
+                canvas.UnlockBits(data)
+            End Try
+        End Using
+    End Sub
+
+    Private Sub ApplyScoreDragCanvasMask(ByVal bitmap As Bitmap, ByVal bounds As Rectangle)
+        If dragPreviewCanvasPixels Is Nothing Then Return
+        Dim data As BitmapData = bitmap.LockBits(New Rectangle(Point.Empty, bitmap.Size), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb)
+        Try
+            Dim row(bitmap.Width * 4 - 1) As Byte
+            For y As Integer = 0 To bitmap.Height - 1
+                Dim address As IntPtr = IntPtr.Add(data.Scan0, y * data.Stride)
+                Runtime.InteropServices.Marshal.Copy(address, row, 0, row.Length)
+                Dim canvasY As Integer = bounds.Y + CInt(Math.Floor(CDbl(y) * bounds.Height / bitmap.Height))
+                For x As Integer = 0 To bitmap.Width - 1
+                    Dim canvasX As Integer = bounds.X + CInt(Math.Floor(CDbl(x) * bounds.Width / bitmap.Width))
+                    Dim transmission As Integer = 0
+                    If canvasX >= 0 AndAlso canvasY >= 0 AndAlso canvasX < dragPreviewCanvasSize.Width AndAlso canvasY < dragPreviewCanvasSize.Height Then
+                        transmission = 255 - CInt(dragPreviewCanvasPixels((canvasY * dragPreviewCanvasSize.Width + canvasX) * 4 + 3))
+                    End If
+                    row(x * 4 + 3) = CByte((CInt(row(x * 4 + 3)) * transmission + 127) \ 255)
+                Next
+                Runtime.InteropServices.Marshal.Copy(row, 0, address, row.Length)
+            Next
+        Finally
+            bitmap.UnlockBits(data)
+        End Try
+    End Sub
+    Private Sub DrawScoreDragPreview(ByVal graphics As Graphics,
+                                     ByVal preview As ScoreDragPreview,
+                                     ByVal scale As Single)
+        If graphics Is Nothing OrElse preview Is Nothing OrElse preview.Score Is Nothing OrElse
+           preview.Content Is Nothing OrElse scale <= 0.0F Then Return
+        Dim score As ReelAndLED.ScoreInfo = preview.Score
+        If preview.RenderedSize <> score.Size Then
+            preview.Dispose()
+            preview.Content = CreateScoreContentBitmap(score, preview.GlassOverlay)
+            preview.RenderedSize = score.Size
+            If preview.Content Is Nothing Then Return
+        End If
+        If Not LayerManager.IsVisible(score) OrElse Not (ShowScoreFrames OrElse ShowScoring) OrElse
+           score.DisplayState <> eScoreDisplayState.Visible OrElse score.Digits <= 0 Then Return
+        Dim rect As New Rectangle(score.Location, score.Size)
+        If rect.Width <= 1 OrElse rect.Height <= 1 Then Return
+
+        ' Cached artwork is mapped first; the stationary canvas mask must not
+        ' rotate with the digits, and must cover the glass pass as well.
+        Dim points As PointF() = ScorePerspectivePoints(score, 1.0F)
+        If score.BehindCanvas AndAlso Me.Image IsNot Nothing Then
+            Dim bounds As Rectangle = Rectangle.FromLTRB(
+                CInt(Math.Floor(points.Min(Function(point) point.X))) - 2,
+                CInt(Math.Floor(points.Min(Function(point) point.Y))) - 2,
+                CInt(Math.Ceiling(points.Max(Function(point) point.X))) + 2,
+                CInt(Math.Ceiling(points.Max(Function(point) point.Y))) + 2)
+            If bounds.Width <= 0 OrElse bounds.Height <= 0 Then Return
+            Dim previewScale As Single = Math.Min(1.0F, Math.Max(0.05F, CSng(Mouse.factor)))
+            Using mapped As New Bitmap(Math.Max(1, CInt(Math.Ceiling(bounds.Width * previewScale))), Math.Max(1, CInt(Math.Ceiling(bounds.Height * previewScale))), PixelFormat.Format32bppArgb)
+                Using mappingGraphics As Graphics = Graphics.FromImage(mapped)
+                    mappingGraphics.Clear(Color.Transparent)
+                    mappingGraphics.ScaleTransform(mapped.Width / CSng(bounds.Width), mapped.Height / CSng(bounds.Height))
+                    mappingGraphics.TranslateTransform(-bounds.X, -bounds.Y)
+                    DrawScoreDragPreviewBitmap(mappingGraphics, preview.Content, points)
+                    If preview.GlassOverlay IsNot Nothing Then DrawScoreDragPreviewBitmap(mappingGraphics, preview.GlassOverlay, points)
+                End Using
+                ApplyScoreDragCanvasMask(mapped, bounds)
+                Using clipped As Bitmap = mapped
+                    If clipped IsNot Nothing Then graphics.DrawImage(clipped,
+                        New RectangleF(bounds.X * scale, bounds.Y * scale, bounds.Width * scale, bounds.Height * scale),
+                        New RectangleF(0, 0, clipped.Width, clipped.Height), GraphicsUnit.Pixel)
+                End Using
+            End Using
+        Else
+            Dim perspectivePoints As PointF() = ScorePerspectivePoints(score, scale)
+            DrawScoreDragPreviewBitmap(graphics, preview.Content, perspectivePoints)
+            If preview.GlassOverlay IsNot Nothing Then DrawScoreDragPreviewBitmap(graphics, preview.GlassOverlay, perspectivePoints)
+        End If
+    End Sub
+    Private Sub DrawScoreDragPreviewBitmap(ByVal graphics As Graphics,
+                                           ByVal bitmap As Bitmap,
+                                           ByVal quad As PointF())
+        If graphics Is Nothing OrElse bitmap Is Nothing OrElse quad Is Nothing OrElse quad.Length <> 4 Then Return
+
+        ' A rectangle, rotation or uniform skew is one affine transform. Draw it
+        ' once while dragging instead of passing the same transform through 160
+        ' perspective strips. True trapezoidal perspective keeps the strip path.
+        Dim expectedBottomRight As New PointF(quad(1).X + quad(3).X - quad(0).X,
+                                              quad(1).Y + quad(3).Y - quad(0).Y)
+        If Math.Abs(expectedBottomRight.X - quad(2).X) < 0.01F AndAlso
+           Math.Abs(expectedBottomRight.Y - quad(2).Y) < 0.01F Then
+            Dim oldMode As Drawing2D.InterpolationMode = graphics.InterpolationMode
+            graphics.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic
+            Try
+                Dim destination() As PointF = {quad(0), quad(1), quad(3)}
+                graphics.DrawImage(bitmap, destination,
+                                   New RectangleF(0.0F, 0.0F, bitmap.Width, bitmap.Height),
+                                   GraphicsUnit.Pixel)
+            Finally
+                graphics.InterpolationMode = oldMode
+            End Try
+        Else
+            DrawPerspectiveBitmap(graphics, bitmap, quad)
+        End If
     End Sub
 
     Private Sub DrawScoreLayerNative(ByVal graphics As Graphics, ByVal score As ReelAndLED.ScoreInfo)

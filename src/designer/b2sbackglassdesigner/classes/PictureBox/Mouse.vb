@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 
 Public Class Mouse
 
@@ -794,8 +794,8 @@ Public Class Mouse
                     Return
                 End If
                 dragStarted = True
-                If Not IsMatchingRotation AndAlso Not IsMatchingPerspectiveDepth AndAlso
-                   Not IsMatchingPerspectiveLeft AndAlso Not IsMatchingPerspectiveRight Then parent.BeginDragPreview(_selectedItems)
+                If currentScore IsNot Nothing OrElse (Not IsMatchingRotation AndAlso Not IsMatchingPerspectiveDepth AndAlso
+                   Not IsMatchingPerspectiveLeft AndAlso Not IsMatchingPerspectiveRight) Then parent.BeginDragPreview(_selectedItems)
             End If
 
             Backglass.currentData.IsDirty = True
@@ -823,7 +823,6 @@ Public Class Mouse
                 Else
                     currentScore.PerspectiveRightScale = CSng(endScale)
                 End If
-                parent.Refresh()
                 RaiseEvent SelectedItemMoving(sender, New MouseMoveEventArgs(MouseMoveEventArgs.eItemType.Score, currentScore.Location, currentScore.Size))
             ElseIf IsMatchingPerspectiveDepth AndAlso currentScore IsNot Nothing Then
                 Dim centerX As Double = (currentScore.Location.X + currentScore.Size.Width / 2.0) * factor
@@ -837,7 +836,6 @@ Public Class Mouse
                 Dim depth As Double = Math.Max(-1.0, Math.Min(1.0, localHorizontal / travel))
                 If My.Computer.Keyboard.ShiftKeyDown Then depth = Math.Round(depth * 10.0) / 10.0
                 currentScore.PerspectiveDepth = CSng(depth)
-                parent.Refresh()
                 RaiseEvent SelectedItemMoving(sender, New MouseMoveEventArgs(MouseMoveEventArgs.eItemType.Score, currentScore.Location, currentScore.Size))
             ElseIf IsMatchingLightRotation AndAlso currentBulb IsNot Nothing Then
                 Dim centerX As Double = (currentBulb.Location.X + currentBulb.Size.Width / 2.0) * factor
@@ -866,7 +864,6 @@ Public Class Mouse
                 Do While angle < 0 : angle += 360.0 : Loop
                 Do While angle >= 360.0 : angle -= 360.0 : Loop
                 currentScore.RotationAngle = CSng(angle)
-                parent.Refresh()
                 RaiseEvent SelectedItemMoving(sender, New MouseMoveEventArgs(MouseMoveEventArgs.eItemType.Score, currentScore.Location, currentScore.Size))
             ElseIf IsMatchingLeft OrElse IsMatchingRight OrElse IsMatchingTop OrElse IsMatchingBottom Then
                 If currentBulb IsNot Nothing AndAlso Not currentBulb.IsImageSnippit AndAlso
@@ -1181,9 +1178,14 @@ Public Class Mouse
 
         If clickedBulb Is Nothing OrElse LayerManager.IsLocked(clickedBulb) Then Return
 
-        ' Keep the normal canvas behavior intact, but make a double-click a
-        ' shortcut to the matching settings panel for the exact object.
-        SelectSingle(clickedBulb)
+        ' Preserve a selected text group when opening its shared settings.
+        ' Other object shortcuts retain their existing single-object behavior.
+        If IsSelected(clickedBulb) AndAlso Not clickedBulb.IsImageSnippit AndAlso
+           Not String.IsNullOrEmpty(clickedBulb.Text) Then
+            SetSelection(New Generic.List(Of InfoBase)(_selectedItems), clickedBulb, True)
+        Else
+            SelectSingle(clickedBulb)
+        End If
         parent.Invalidate()
         parent.BeginInvoke(New MethodInvoker(Sub() OpenBulbSettingsShortcut(clickedBulb)))
     End Sub

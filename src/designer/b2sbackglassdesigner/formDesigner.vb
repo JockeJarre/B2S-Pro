@@ -3655,7 +3655,7 @@ Public Class formDesigner
             End If
 
             If Not String.IsNullOrEmpty(selected.Text) Then
-                Using editor As New formTextSettingsEditor(selected)
+                Using editor As New formTextSettingsEditor(selected, Backglass.currentTabPage.Mouse.SelectedItems.OfType(Of Illumination.BulbInfo)().Where(Function(item) Not item.IsImageSnippit AndAlso Not String.IsNullOrEmpty(item.Text)))
                     editor.ShowDialog(Me)
                 End Using
                 Backglass.currentTabPage.RefreshIllumination()

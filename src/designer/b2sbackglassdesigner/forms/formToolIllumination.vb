@@ -238,7 +238,7 @@ Public Class formToolIllumination
         If Backglass.currentTabPage Is Nothing OrElse Backglass.currentTabPage.Mouse.SelectedBulb Is Nothing Then Return
         Dim selected As Illumination.BulbInfo = Backglass.currentTabPage.Mouse.SelectedBulb
         If selected.IsImageSnippit OrElse String.IsNullOrEmpty(selected.Text) Then Return
-        Using editor As New formTextSettingsEditor(selected)
+        Using editor As New formTextSettingsEditor(selected, Backglass.currentTabPage.Mouse.SelectedItems.OfType(Of Illumination.BulbInfo)().Where(Function(item) Not item.IsImageSnippit AndAlso Not String.IsNullOrEmpty(item.Text)))
             editor.ShowDialog(Me)
         End Using
         Backglass.currentTabPage.RefreshIllumination()
