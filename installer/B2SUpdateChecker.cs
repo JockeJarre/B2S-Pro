@@ -123,7 +123,7 @@ namespace B2SPro.Updates
 
                     Version installedVersion = target.ReadInstalledVersion();
                     AvailableUpdate available = GitHubReleaseClient.GetLatest(target);
-                    if (available.Version <= installedVersion)
+                    if (!UpdateDecision.IsAvailable(installedVersion, available, target.InstallationFolder))
                     {
                         if (interactive)
                         {
@@ -139,6 +139,7 @@ namespace B2SPro.Updates
                     string message = target.ProductName + " update available.\r\n\r\n" +
                         "Installed version: " + VersionText(installedVersion) + "\r\n" +
                         "Available version: " + VersionText(available.Version) + "\r\n\r\n" +
+                        (available.Version == installedVersion ? "The current release package differs from the recorded installation, or this older installation has no package record.\r\n\r\n" : "") +
                         "Download the verified update and open setup now?\r\n\r\n" +
                         target.CloseBeforeInstallMessage;
                     DialogResult answer = MessageBox.Show(
@@ -343,6 +344,20 @@ namespace B2SPro.Updates
         }
     }
 
+    internal static class UpdateDecision
+    {
+        public const string ReceiptName = "B2S-Package.sha256";
+
+        internal static bool IsAvailable(Version installed, AvailableUpdate available, string folder)
+        {
+            if (available.Version != installed) return available.Version > installed;
+            string expected = GitHubReleaseClient.NormalizeDigest(available.PackageDigest);
+            if (expected == null) throw new InvalidDataException("GitHub did not provide a package fingerprint; the current build could not be verified.");
+            string receipt = Path.Combine(folder, ReceiptName);
+            string recorded = File.Exists(receipt) ? GitHubReleaseClient.NormalizeDigest(File.ReadAllText(receipt).Trim()) : null;
+            return !String.Equals(recorded, expected, StringComparison.OrdinalIgnoreCase);
+        }
+    }
     internal static class VersionRules
     {
         public static Version ParseAndNormalize(string value)
@@ -361,12 +376,14 @@ namespace B2SPro.Updates
         public readonly Version Version;
         public readonly string SetupUrl;
         public readonly string SetupDigest;
+        public readonly string PackageDigest;
 
-        public AvailableUpdate(Version version, string setupUrl, string setupDigest)
+        public AvailableUpdate(Version version, string setupUrl, string setupDigest, string packageDigest)
         {
             Version = version;
             SetupUrl = setupUrl;
             SetupDigest = setupDigest;
+            PackageDigest = packageDigest;
         }
     }
 
@@ -393,13 +410,14 @@ namespace B2SPro.Updates
                 Version packageVersion = null;
                 string setupUrl = null;
                 string setupDigest = null;
+                string packageDigest = null;
                 foreach (object rawAsset in assets)
                 {
                     var asset = rawAsset as Dictionary<string, object>;
                     if (asset == null) continue;
                     string name = ReadString(asset, "name");
                     Version parsed = target.ParsePackageVersion(name);
-                    if (parsed != null) packageVersion = parsed;
+                    if (parsed != null) { packageVersion = parsed; packageDigest = ReadString(asset, "digest"); }
                     if (String.Equals(name, target.SetupAssetName, StringComparison.OrdinalIgnoreCase))
                     {
                         setupUrl = ReadString(asset, "browser_download_url");
@@ -409,7 +427,7 @@ namespace B2SPro.Updates
 
                 if (packageVersion == null) throw new InvalidDataException("The latest release does not contain the expected " + target.ProductName + " package.");
                 if (String.IsNullOrWhiteSpace(setupUrl)) throw new InvalidDataException("The latest release does not contain " + target.SetupAssetName + ".");
-                return new AvailableUpdate(packageVersion, setupUrl, setupDigest);
+                return new AvailableUpdate(packageVersion, setupUrl, setupDigest, packageDigest);
             }
         }
 

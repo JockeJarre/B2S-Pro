@@ -1,4 +1,4 @@
-﻿Imports System.Runtime.CompilerServices
+Imports System.Runtime.CompilerServices
 
 Public Module LayerManager
     Private ReadOnly hiddenItems As New HashSet(Of Object)(New ReferenceComparer())
@@ -7,12 +7,14 @@ Public Module LayerManager
     Private showLights As Boolean = True
     Private showFlashers As Boolean = True
     Private showSnippets As Boolean = True
+    Private showText As Boolean = True
 
     Public Function IsVisible(item As Object) As Boolean
         If item Is Nothing OrElse hiddenItems.Contains(item) Then Return False
         If TypeOf item Is Illumination.BulbInfo Then
             Dim bulb As Illumination.BulbInfo = DirectCast(item, Illumination.BulbInfo)
             If bulb.IsImageSnippit Then Return showSnippets
+            If Not String.IsNullOrEmpty(bulb.Text) Then Return showText
             If bulb.IlluMode = Illumination.eIlluMode.Flasher OrElse bulb.LightPurpose = Illumination.eLightPurpose.Flasher Then Return showFlashers
             Return showLights
         End If
@@ -41,6 +43,14 @@ Public Module LayerManager
 
     Public Sub SetSnippetCategoryVisible(visible As Boolean)
         showSnippets = visible
+    End Sub
+
+    Public Function IsTextCategoryVisible() As Boolean
+        Return showText
+    End Function
+
+    Public Sub SetTextCategoryVisible(visible As Boolean)
+        showText = visible
     End Sub
 
     Public Sub SetVisible(item As Object, visible As Boolean)

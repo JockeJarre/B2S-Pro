@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Text
 Imports System.IO
 Imports System.Linq
@@ -330,7 +330,7 @@ Public Class Save
                         bulb.LightTemperature = ReadIntAttribute(innerNode, "LightTemperature", 4000, 2000, 6500)
                         bulb.LightRotationAngle = ReadSingleAttribute(innerNode, "LightRotationAngle", 0.0F, -360.0F, 360.0F)
                         bulb.IlluMode = CType(ReadIntAttribute(innerNode, "IlluMode", CInt(bulb.IlluMode), 0, 1), Illumination.eIlluMode)
-                        Dim maximumGlowIntensity As Integer = If(bulb.UsesArtworkPixelRenderer, 1600, 800)
+                        Dim maximumGlowIntensity As Integer = If(bulb.UsesArtworkPixelRenderer OrElse Not String.IsNullOrEmpty(bulb.Text), 1600, 800)
                         bulb.GlowIntensity = ReadIntAttribute(innerNode, "GlowIntensity", bulb.GlowIntensity, 0, maximumGlowIntensity)
                         bulb.GlowBlendMode = ReadIntAttribute(innerNode, "GlowBlendMode", bulb.GlowBlendMode, 0, 2)
                         bulb.GlowPreviewQuality = ReadIntAttribute(innerNode, "GlowPreviewQuality", bulb.GlowPreviewQuality, 0, 1)

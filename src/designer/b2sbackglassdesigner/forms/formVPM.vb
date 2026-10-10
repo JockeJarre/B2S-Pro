@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports Microsoft.Win32
 Imports System.Text
 Imports System.Threading.Tasks
@@ -169,7 +169,8 @@ Public Class formVPM
             closingPreview = True
             Await StopAndReleaseBackglassServerAsync()
             closeAfterShutdown = True
-            Close()
+            ' Cleanup may complete synchronously; do not reenter this closing event.
+            If Not IsDisposed AndAlso IsHandleCreated Then BeginInvoke(New MethodInvoker(AddressOf Close))
             Return
         End If
 

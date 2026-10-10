@@ -174,3 +174,11 @@ First public B2S Pro baseline.
 - Updated B2S Pro branding, About information, credits, and versioning.
 - Standardized Designer version 1.0.1 and Server version 3.0.0 release names.
 - Preserved established legacy backglass behavior and file compatibility.
+
+October 10, 2026 — same-version Designer update
+- Backport text editing, font selection, remembered appearance, Dodge Color, brightness, and uppercase typing fixes to .NET Framework 4.8.
+- Add the Text layer category, cyan text rows, and type colors across layer rows.
+- Compact the Illumination panel and improve Accurate Light Preview responsiveness.
+- Fix repeated Step 2 preview closing and reopening.
+- Detect refreshed same-version update packages and record installed package fingerprints.
+- Preserve the existing splash screen and Server 3.0.3 runtime.

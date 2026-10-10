@@ -407,7 +407,7 @@ namespace B2SPro.Setup
             _githubSource.ForeColor = Color.White;
             _githubSource.BackColor = Color.Transparent;
             _githubSource.UseVisualStyleBackColor = false;
-            if (_localSource.Enabled) _localSource.Checked = true; else _githubSource.Checked = true;
+            _githubSource.Checked = true;
             flow.Controls.Add(_localSource);
             flow.Controls.Add(_githubSource);
             group.Controls.Add(flow);
@@ -789,12 +789,16 @@ namespace B2SPro.Setup
 
     internal sealed class ReleaseBundle : IDisposable
     {
+        private readonly string _designerDigest;
+        private readonly string _serverDigest;
         private readonly ZipArchive _designerArchive;
         private readonly ZipArchive _serverArchive;
 
         public ReleaseBundle(string designerPath, string serverPath)
         {
             if (String.IsNullOrWhiteSpace(serverPath)) throw new InvalidDataException("The Server package path is missing. Nothing was installed.");
+            _designerDigest = String.IsNullOrWhiteSpace(designerPath) ? null : Hashing.Sha256(designerPath);
+            _serverDigest = Hashing.Sha256(serverPath);
             if (!String.IsNullOrWhiteSpace(designerPath)) _designerArchive = ZipFile.OpenRead(designerPath);
             try { _serverArchive = ZipFile.OpenRead(serverPath); }
             catch
@@ -853,7 +857,7 @@ namespace B2SPro.Setup
 
         public InstallPlan CreatePlan(string designer, string server, string arch, bool installDesigner)
         {
-            return new InstallPlan(_designerArchive, _serverArchive, designer, server, arch, installDesigner, GetServerPrefix());
+            return new InstallPlan(_designerArchive, _serverArchive, designer, server, arch, installDesigner, GetServerPrefix(), _designerDigest, _serverDigest);
         }
 
         private string GetServerPrefix()
@@ -888,6 +892,8 @@ namespace B2SPro.Setup
         private readonly bool _installDesigner;
         private readonly string _serverPrefix;
         private readonly bool _freshServer;
+        private readonly string _designerDigest;
+        private readonly string _serverDigest;
         private readonly List<CopyItem> _items = new List<CopyItem>();
         private static readonly string[] RetiredServerFiles =
         {
@@ -898,8 +904,10 @@ namespace B2SPro.Setup
         };
         public readonly List<string> ExistingProgramFiles = new List<string>();
 
-        public InstallPlan(ZipArchive designerArchive, ZipArchive serverArchive, string designer, string server, string arch, bool installDesigner, string serverPrefix)
+        public InstallPlan(ZipArchive designerArchive, ZipArchive serverArchive, string designer, string server, string arch, bool installDesigner, string serverPrefix, string designerDigest, string serverDigest)
         {
+            _designerDigest = designerDigest;
+            _serverDigest = serverDigest;
             _designerArchive = designerArchive;
             _serverArchive = serverArchive;
             _installDesigner = installDesigner;
@@ -1007,6 +1015,9 @@ namespace B2SPro.Setup
                     installed++;
                 }
 
+                if (_installDesigner) WritePackageReceipt(_designer, designerBackup, _designerDigest, changed);
+                WritePackageReceipt(_server, serverBackup, _serverDigest, changed);
+
                 string registrationError = null;
                 if (registerServer)
                 {
@@ -1057,6 +1068,19 @@ namespace B2SPro.Setup
             }
         }
 
+        private static void WritePackageReceipt(string folder, string backupFolder, string digest, List<RollbackItem> changed)
+        {
+            string destination = Path.Combine(folder, "B2S-Package.sha256");
+            bool existed = File.Exists(destination);
+            string backup = Path.Combine(backupFolder, "B2S-Package.sha256");
+            if (existed)
+            {
+                Directory.CreateDirectory(backupFolder);
+                File.Copy(destination, backup, true);
+            }
+            changed.Add(new RollbackItem(destination, existed ? backup : null, existed));
+            File.WriteAllText(destination, digest + Environment.NewLine);
+        }
         private void RegisterServer()
         {
             string registerApp = Path.Combine(_server, "B2SBackglassServerRegisterApp.exe");

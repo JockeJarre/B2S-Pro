@@ -1923,10 +1923,9 @@ Public Class B2SPictureBox
                     Else
                         Dim image As Image = If(IsDMDPictureBox, Backglass.currentData.DMDImage, Backglass.currentData.Image)
                         If image IsNot Nothing Then
-                            If _ShowIntensityIllumination Then
-                                Lights.PrepareImage(image)
-                                Lights.DrawImages(image, , , , RomInfoFilter)
-                            Else
+                            ' Accurate preview is drawn by DrawUnifiedVisualLayers, which
+                            ' owns its light cache. The export/animation images are unused here.
+                            If Not _ShowIntensityIllumination Then
                                 Lights.DrawImage(image, RomInfoFilter)
                             End If
                         End If

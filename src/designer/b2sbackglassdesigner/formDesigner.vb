@@ -2835,6 +2835,7 @@ Public Class formDesigner
         selected.Text = " "
         selected.FontName = If(String.IsNullOrWhiteSpace(selected.FontName), "Arial", selected.FontName)
         selected.FontSize = Math.Max(10.0F, selected.FontSize)
+        Illumination.TextSettingsDefaults.ApplyTo(selected)
         ' Text uses the established glyph/dodge renderer. Artwork-pixel lighting
         ' is reserved for regular lights and flashers.
         selected.ArtworkPixelLighting = False
@@ -3105,7 +3106,12 @@ Public Class formDesigner
 
         If Backglass.currentData IsNot Nothing AndAlso Backglass.currentTabPage IsNot Nothing Then
             If formVPM Is Nothing Then formVPM = New formVPM()
-            formVPM.ShowDialog(Me)
+            Try
+                formVPM.ShowDialog(Me)
+            Finally
+                ' Modal Close hides the dialog; release its per-run shutdown state.
+                If formVPM IsNot Nothing Then formVPM.Dispose()
+            End Try
             SaveSettings()
         End If
 

@@ -1,4 +1,4 @@
-﻿Imports System.Windows.Forms
+Imports System.Windows.Forms
 Imports System.Drawing
 Imports System.IO
 Imports System.Xml
@@ -25,6 +25,7 @@ Public Class formToolLayers
     Private ReadOnly chkShowLights As New CategoryToggleCheckBox()
     Private ReadOnly chkShowFlashers As New CategoryToggleCheckBox()
     Private ReadOnly chkShowSnippets As New CategoryToggleCheckBox()
+    Private ReadOnly chkShowText As New CategoryToggleCheckBox()
     Private ReadOnly layerIcons As New ImageList()
     Private refreshing As Boolean
     Private draggedItems As New List(Of Object)()
@@ -123,7 +124,7 @@ Public Class formToolLayers
         filterBox.Dock = DockStyle.Fill
         filterBox.DropDownStyle = ComboBoxStyle.DropDownList
         filterBox.Font = Font
-        filterBox.Items.AddRange(New Object() {"All", "Images", "Bulbs", "Flashers", "Snippets", "Scores", "Hidden", "Locked"})
+        filterBox.Items.AddRange(New Object() {"All", "Images", "Bulbs", "Flashers", "Snippets", "Scores", "Hidden", "Locked", "Text"})
         filterBox.SelectedIndex = 0
         countLabel.Dock = DockStyle.Fill
         countLabel.TextAlign = ContentAlignment.MiddleRight
@@ -146,7 +147,8 @@ Public Class formToolLayers
         SetupCategoryCheckBox(chkShowLights, "Lights", Color.Gold, LayerManager.IsLightCategoryVisible(), AddressOf CategoryVisibilityChanged)
         SetupCategoryCheckBox(chkShowFlashers, "Flashers", Color.RoyalBlue, LayerManager.IsFlasherCategoryVisible(), AddressOf CategoryVisibilityChanged)
         SetupCategoryCheckBox(chkShowSnippets, "Snippets", Color.Red, LayerManager.IsSnippetCategoryVisible(), AddressOf CategoryVisibilityChanged)
-        categoryPanel.Controls.AddRange(New Control() {chkShowLights, chkShowFlashers, chkShowSnippets})
+        SetupCategoryCheckBox(chkShowText, "Text", Color.Cyan, LayerManager.IsTextCategoryVisible(), AddressOf CategoryVisibilityChanged)
+        categoryPanel.Controls.AddRange(New Control() {chkShowLights, chkShowFlashers, chkShowSnippets, chkShowText})
 
         Dim buttons As New TableLayoutPanel With {
             .Name = "pnlLayerCommands",
@@ -286,9 +288,11 @@ Public Class formToolLayers
             chkShowLights.Checked = ReadLayoutBool(root, "lights", True)
             chkShowFlashers.Checked = ReadLayoutBool(root, "flashers", True)
             chkShowSnippets.Checked = ReadLayoutBool(root, "snippets", True)
+            chkShowText.Checked = ReadLayoutBool(root, "text", True)
             LayerManager.SetLightCategoryVisible(chkShowLights.Checked)
             LayerManager.SetFlasherCategoryVisible(chkShowFlashers.Checked)
             LayerManager.SetSnippetCategoryVisible(chkShowSnippets.Checked)
+        LayerManager.SetTextCategoryVisible(chkShowText.Checked)
             For index As Integer = 0 To layers.Columns.Count - 1
                 layers.Columns(index).Width = Math.Max(20, ReadLayoutInt(root, "column" & index.ToString(), layers.Columns(index).Width))
             Next
@@ -312,7 +316,7 @@ Public Class formToolLayers
             root.SetAttribute("x", savedBounds.X.ToString()) : root.SetAttribute("y", savedBounds.Y.ToString())
             root.SetAttribute("width", savedBounds.Width.ToString()) : root.SetAttribute("height", savedBounds.Height.ToString())
             root.SetAttribute("filter", filterBox.SelectedIndex.ToString())
-            root.SetAttribute("lights", chkShowLights.Checked.ToString()) : root.SetAttribute("flashers", chkShowFlashers.Checked.ToString()) : root.SetAttribute("snippets", chkShowSnippets.Checked.ToString())
+            root.SetAttribute("lights", chkShowLights.Checked.ToString()) : root.SetAttribute("flashers", chkShowFlashers.Checked.ToString()) : root.SetAttribute("snippets", chkShowSnippets.Checked.ToString()) : root.SetAttribute("text", chkShowText.Checked.ToString())
             For index As Integer = 0 To layers.Columns.Count - 1
                 root.SetAttribute("column" & index.ToString(), layers.Columns(index).Width.ToString())
             Next
@@ -342,6 +346,7 @@ Public Class formToolLayers
         layerIcons.ColorDepth = ColorDepth.Depth32Bit
         layerIcons.Images.Add("Bulb", CreateTypeIcon("B", Color.Goldenrod))
         layerIcons.Images.Add("Lamp", layerIcons.Images("Bulb"))
+        layerIcons.Images.Add("Text", CreateTypeIcon("T", Color.Cyan))
         layerIcons.Images.Add("Blinker", CreateTypeIcon("B", Color.DarkOrange))
         layerIcons.Images.Add("Snippet", CreateTypeIcon("S", Color.Red))
         layerIcons.Images.Add("Score", CreateTypeIcon("#", Color.SeaGreen))
@@ -414,6 +419,7 @@ Public Class formToolLayers
         LayerManager.SetLightCategoryVisible(chkShowLights.Checked)
         LayerManager.SetFlasherCategoryVisible(chkShowFlashers.Checked)
         LayerManager.SetSnippetCategoryVisible(chkShowSnippets.Checked)
+        LayerManager.SetTextCategoryVisible(chkShowText.Checked)
         RefreshLayers()
         If Backglass.currentTabPage IsNot Nothing Then Backglass.currentTabPage.Invalidate()
     End Sub
@@ -514,7 +520,7 @@ Public Class formToolLayers
         Dim stateText As String = If(e.Item.SubItems.Count > 4, e.Item.SubItems(4).Text, String.Empty)
         Dim rowBack As Color = LayerRowBackColor(e.Item, typeName)
 
-        Dim textColor As Color = If(selected, Color.White, LayerCellColor(e.ColumnIndex, typeName, stateText))
+        Dim textColor As Color = LayerCellColor(3, typeName, stateText)
         Dim textBounds As Rectangle = Rectangle.Inflate(e.Bounds, -6, 0)
         If e.ColumnIndex = 0 AndAlso layers.SmallImageList IsNot Nothing AndAlso e.Item.ImageIndex >= 0 Then
             Dim icon As Image = layers.SmallImageList.Images(e.Item.ImageIndex)
@@ -559,6 +565,8 @@ Public Class formToolLayers
     Private Function LayerCellColor(columnIndex As Integer, typeName As String, stateText As String) As Color
         If columnIndex = 3 Then
             Select Case typeName.ToLowerInvariant()
+                Case "text"
+                    Return Color.Cyan
                 Case "lamp", "bulb"
                     Return Color.FromArgb(255, 190, 61)
                 Case "blinker"
@@ -641,6 +649,8 @@ Public Class formToolLayers
                     typeName = "Picture Animation"
                 ElseIf bulb.IsImageSnippit Then
                     typeName = "Snippet"
+                ElseIf Not String.IsNullOrEmpty(bulb.Text) Then
+                    typeName = "Text"
                 ElseIf bulb.IlluMode = Illumination.eIlluMode.Flasher OrElse bulb.LightPurpose = Illumination.eLightPurpose.Flasher Then
                     typeName = "Flasher"
                 ElseIf bulb.BlinkEnabled Then
@@ -751,6 +761,8 @@ Public Class formToolLayers
                 Return typeName = "Image" OrElse typeName = "Canvas"
             Case "Bulbs"
                 Return typeName = "Bulb" OrElse typeName = "Lamp" OrElse typeName = "Blinker"
+            Case "Text"
+                Return typeName = "Text"
             Case "Flashers"
                 Return typeName = "Flasher"
             Case "Snippets"
@@ -894,7 +906,7 @@ Public Class formToolLayers
         Dim item As Object = SelectedObject()
         If Not TypeOf item Is Illumination.BulbInfo Then Return
         Dim bulb As Illumination.BulbInfo = DirectCast(item, Illumination.BulbInfo)
-        Dim typeName As String = If(bulb.IsImageSnippit, "Snippet", If(bulb.IlluMode = Illumination.eIlluMode.Flasher OrElse bulb.LightPurpose = Illumination.eLightPurpose.Flasher, "Flasher", If(bulb.BlinkEnabled, "Blinker", "Lamp")))
+        Dim typeName As String = If(bulb.IsImageSnippit, "Snippet", If(Not String.IsNullOrEmpty(bulb.Text), "Text", If(bulb.IlluMode = Illumination.eIlluMode.Flasher OrElse bulb.LightPurpose = Illumination.eLightPurpose.Flasher, "Flasher", If(bulb.BlinkEnabled, "Blinker", "Lamp"))))
         Dim currentName As String = If(String.IsNullOrWhiteSpace(bulb.Name), typeName & " " & bulb.ID, bulb.Name)
         Dim newName As String = Microsoft.VisualBasic.Interaction.InputBox("Layer name:", "Rename Layer", currentName)
         If String.IsNullOrWhiteSpace(newName) OrElse newName = currentName Then Return

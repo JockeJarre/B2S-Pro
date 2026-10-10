@@ -764,7 +764,9 @@ Namespace Illumination
                 ' while retaining their independent lamp/flasher trigger identities.
                 Dim isFlasherLighting As Boolean = artworkPixelLighting OrElse
                                                        illumode = Illumination.eIlluMode.Flasher
-                Dim useArtworkPixels As Boolean = isFlasherLighting
+                ' Text always uses the glyph/dodge renderer, including saved text objects
+                ' that retain the artwork-light flag from their original lamp.
+                Dim useArtworkPixels As Boolean = isFlasherLighting AndAlso String.IsNullOrEmpty(text)
                 Dim artworkExposure As Integer =
                     GetArtworkExposure(glowIntensity, isFlasherLighting)
                 Dim currentimage As Bitmap = imageBackground.Clone(rectX, Imaging.PixelFormat.Format32bppArgb)
@@ -835,6 +837,7 @@ Namespace Illumination
                 ' opaque pixels, but turn the transparent portion into a colored,
                 ' alpha-only light overlay so moving/rotating layers remain visible.
                 ApplyTransparentCanvasTransmission(image, currentimage, If(lightcolor = Nothing, DefaultLightColor, lightcolor), glowIntensity)
+                If Not String.IsNullOrEmpty(text) Then ApplyTextBrightness(image, glowIntensity)
                 ApplyTemperatureToRenderedLight(image, lightTemperature)
                 If Not String.IsNullOrEmpty(selectionMaskData) Then
                     ApplySelectionMask(image, currentimage, rectX, selectionMaskData, selectionFeather)
@@ -848,6 +851,26 @@ Namespace Illumination
 
         End Function
 
+        Private Sub ApplyTextBrightness(ByVal image As Bitmap, ByVal glowIntensity As Integer)
+            ' Dodge can saturate glyph RGB even at zero brightness. Adjust only
+            ' text opacity; 100% preserves the established glyph pixels exactly.
+            If glowIntensity = 100 Then Return
+            Dim strength As Double = Math.Max(0, Math.Min(1600, glowIntensity)) / 100.0
+            Dim alphaMap(255) As Byte
+            For alpha As Integer = 0 To 255
+                alphaMap(alpha) = If(strength = 0, CByte(0),
+                    CByte(Math.Round(255.0 * (1.0 - Math.Pow(1.0 - alpha / 255.0, strength)))))
+            Next
+            Dim pixels As New BitmapToByteConverter(image)
+            pixels.BitmapToBytes()
+            For y As Integer = 0 To image.Height - 1
+                For x As Integer = 0 To image.Width - 1
+                    Dim offset As Integer = y * Math.Abs(pixels.Stride) + x * 4 + 3
+                    pixels.bytes(offset) = alphaMap(pixels.bytes(offset))
+                Next
+            Next
+            pixels.BytesToBitmap()
+        End Sub
         Private Sub ApplyTransparentCanvasTransmission(ByVal illuminated As Bitmap,
                                                         ByVal background As Bitmap,
                                                         ByVal lightColor As Color,

@@ -98,8 +98,8 @@ Public Class formToolIllumination
         illuminationToolTip = New ToolTip()
 
         ' Compact studio-panel proportions used by every rebuilt tool window.
-        Me.ClientSize = ScaleLogicalSize(New Size(270, 445))
-        Me.MinimumSize = ScaleLogicalSize(New Size(250, 400))
+        Me.ClientSize = ScaleLogicalSize(New Size(250, 335))
+        Me.MinimumSize = ScaleLogicalSize(New Size(210, 360))
         Me.SetStyle(ControlStyles.AllPaintingInWmPaint Or ControlStyles.OptimizedDoubleBuffer Or ControlStyles.ResizeRedraw, True)
 
         btnGlow = New Button With {.Name = "btnEditLightGlow", .Text = "Light Settings...", .FlatStyle = FlatStyle.Flat, .Height = 25}
@@ -123,7 +123,8 @@ Public Class formToolIllumination
             lblIntensity, TrackBarIntensity, numericIntensity, btnLightColor,
             lblDodgeColor, cmbDodgeColor, B2SLine3,
             lblIlluminationText, txtIlluminationText, rbAlignLeft, rbAlignCenter,
-            rbAlignRight, btnFonts, B2SLine4}
+            rbAlignRight, btnFonts, B2SLine4, B2SLine5, lblLocation, lblSize,
+            txtLocationX, txtLocationY, txtSizeWidth, txtSizeHeight}
             oldControl.Visible = False
             oldControl.TabStop = False
         Next
@@ -143,12 +144,11 @@ Public Class formToolIllumination
         Dim labelLeft As Integer = ScaleLogical(14)
         Dim labelWidth As Integer = ScaleLogical(82)
         Dim contentLeft As Integer = ScaleLogical(102)
-        Dim contentWidth As Integer = Math.Max(ScaleLogical(112), Me.ClientSize.Width - contentLeft - margin)
-        Dim fullWidth As Integer = Math.Max(ScaleLogical(250), Me.ClientSize.Width - (margin * 2))
-        Dim halfWidth As Integer = Math.Max(ScaleLogical(50), (contentWidth - ScaleLogical(8)) \ 2)
+        Dim contentWidth As Integer = Math.Max(ScaleLogical(80), Me.ClientSize.Width - contentLeft - margin)
+        Dim fullWidth As Integer = Math.Max(1, Me.ClientSize.Width - (margin * 2))
 
         lblSelectedType.SetBounds(margin, ScaleLogical(6), fullWidth, ScaleLogical(25))
-        lblLampPropertiesHeader.SetBounds(labelLeft, ScaleLogical(36), Math.Max(ScaleLogical(180), Me.ClientSize.Width - ScaleLogical(28)), ScaleLogical(16))
+        lblLampPropertiesHeader.SetBounds(labelLeft, ScaleLogical(36), Math.Max(1, Me.ClientSize.Width - ScaleLogical(28)), ScaleLogical(16))
 
         ' Lamp properties.
         lblName.SetBounds(labelLeft, ScaleLogical(54), labelWidth, ScaleLogical(21))
@@ -173,25 +173,16 @@ Public Class formToolIllumination
         chkRomInverted.SetBounds(contentLeft, ScaleLogical(228), contentWidth, ScaleLogical(21))
         lblB2SValue.SetBounds(labelLeft, ScaleLogical(230), labelWidth, ScaleLogical(21))
         txtB2SValue.SetBounds(contentLeft, ScaleLogical(229), contentWidth, ScaleLogical(22))
-        B2SLine5.SetBounds(margin, ScaleLogical(254), fullWidth, ScaleLogical(16))
 
         B2SLine1.Visible = False
 
-        ' Location and size rows.
-        lblLocation.SetBounds(labelLeft, ScaleLogical(274), labelWidth, ScaleLogical(21))
-        txtLocationX.SetBounds(contentLeft, ScaleLogical(273), halfWidth, ScaleLogical(22))
-        txtLocationY.SetBounds(contentLeft + halfWidth + ScaleLogical(6), ScaleLogical(273), contentWidth - halfWidth - ScaleLogical(6), ScaleLogical(22))
-        lblSize.SetBounds(labelLeft, ScaleLogical(300), labelWidth, ScaleLogical(21))
-        txtSizeWidth.SetBounds(contentLeft, ScaleLogical(299), halfWidth, ScaleLogical(22))
-        txtSizeHeight.SetBounds(contentLeft + halfWidth + ScaleLogical(6), ScaleLogical(299), contentWidth - halfWidth - ScaleLogical(6), ScaleLogical(22))
-
         ' Advanced Feather and Contrast controls are intentionally available
         ' only through the Light Settings dialog.
-        btnSnippitSettings.SetBounds(margin, ScaleLogical(330), fullWidth, ScaleLogical(29))
+        btnSnippitSettings.SetBounds(margin, ScaleLogical(260), fullWidth, ScaleLogical(29))
         btnSnippitSettings.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
-        btnGlow.SetBounds(margin, ScaleLogical(365), fullWidth, ScaleLogical(29))
+        btnGlow.SetBounds(margin, ScaleLogical(295), fullWidth, ScaleLogical(29))
         btnGlow.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
-        btnTextSettings.SetBounds(margin, ScaleLogical(365), fullWidth, ScaleLogical(29))
+        btnTextSettings.SetBounds(margin, ScaleLogical(295), fullWidth, ScaleLogical(29))
         btnTextSettings.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
         btnGlow.BringToFront()
         btnTextSettings.BringToFront()
@@ -421,13 +412,13 @@ Public Class formToolIllumination
         RaiseEvent DataChanged(Me, New IlluminationEventArgs(eIlluminationDataType.IlluminationtextAlignment, Illumination.eTextAlignment.Right))
     End Sub
     Private Sub Fonts_Click(sender As System.Object, e As System.EventArgs) Handles btnFonts.Click
-        Dim selectedFont As Font = ShowB2SFontDialog(_MyFont)
+        Dim selectedFont As Font = ShowB2SFontDialog(_MyFont, Me, txtIlluminationText.Text)
         If selectedFont Is Nothing Then Return
         MyFont = selectedFont
         RaiseEvent DataChanged(Me, New IlluminationEventArgs(eIlluminationDataType.IlluminationtextFont, selectedFont))
     End Sub
 
-    Private Function ShowB2SFontDialog(ByVal currentFont As Font) As Font
+    Friend Shared Function ShowB2SFontDialog(ByVal currentFont As Font, ByVal owner As IWin32Window, ByVal sampleText As String) As Font
         Dim initialFont As Font = If(currentFont, New Font("Arial", 10.0F, FontStyle.Regular, GraphicsUnit.Point))
         Using dialog As New Form()
             dialog.Text = "Illuminated Text Font"
@@ -455,7 +446,7 @@ Public Class formToolIllumination
             Dim underlineBox As New CheckBox With {.Text = "Underline", .Left = 312, .Top = 132, .Width = 82, .Checked = initialFont.Underline}
             Dim strikeoutBox As New CheckBox With {.Text = "Strikeout", .Left = 398, .Top = 132, .Width = 74, .Checked = initialFont.Strikeout}
             Dim sampleLabel As New Label With {.Text = "SAMPLE", .Left = 312, .Top = 166, .Width = 160, .Height = 18}
-            Dim sample As New Label With {.Text = If(String.IsNullOrEmpty(txtIlluminationText.Text), "Illuminated Text", txtIlluminationText.Text), .Left = 312, .Top = 186, .Width = 160, .Height = 78, .BorderStyle = BorderStyle.FixedSingle, .TextAlign = ContentAlignment.MiddleCenter, .AutoEllipsis = True}
+            Dim sample As New Label With {.Text = If(String.IsNullOrEmpty(sampleText), "Illuminated Text", sampleText), .Left = 312, .Top = 186, .Width = 160, .Height = 78, .BorderStyle = BorderStyle.FixedSingle, .TextAlign = ContentAlignment.MiddleCenter, .AutoEllipsis = True}
 
             Dim okButton As New Button With {.Text = "OK", .Left = 292, .Top = 292, .Width = 86, .Height = 32, .DialogResult = DialogResult.OK, .FlatStyle = FlatStyle.Flat}
             Dim cancelButton As New Button With {.Text = "Cancel", .Left = 386, .Top = 292, .Width = 86, .Height = 32, .DialogResult = DialogResult.Cancel, .FlatStyle = FlatStyle.Flat}
@@ -500,7 +491,7 @@ Public Class formToolIllumination
             updateSample()
 
             AppThemeManager.ApplyB2SProDialog(dialog)
-            Dim fontDialogResult As DialogResult = dialog.ShowDialog(Me)
+            Dim fontDialogResult As DialogResult = dialog.ShowDialog(owner)
             If samplePreviewFont IsNot Nothing Then samplePreviewFont.Dispose()
             If fontDialogResult <> DialogResult.OK OrElse fontList.SelectedItem Is Nothing Then Return Nothing
 

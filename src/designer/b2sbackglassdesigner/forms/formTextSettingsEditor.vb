@@ -69,15 +69,12 @@ Public Class formTextSettingsEditor
         Dim accent As Color = Color.FromArgb(255, 153, 0)
         Dim panelColor As Color = Color.FromArgb(27, 29, 31)
 
-        Dim title As New Label With {
-            .Text = "T  Text Box", .Left = 24, .Top = 16, .Width = 360, .Height = 42,
-            .Font = New Font("Tahoma", 20.0F, FontStyle.Bold), .ForeColor = accent
-        }
+
         Dim description As New Label With {
             .Text = "Edit illuminated text and preview the saved DirectB2S result.",
             .Left = 26, .Top = 57, .Width = 440, .Height = 24, .ForeColor = Color.Gainsboro
         }
-        Controls.Add(title)
+
         Controls.Add(description)
 
         Dim settings As New GroupBox With {
@@ -89,7 +86,7 @@ Public Class formTextSettingsEditor
 
         settings.Controls.Add(New Label With {.Text = "Illuminated Text", .Left = 18, .Top = 34, .Width = 145, .ForeColor = Color.WhiteSmoke, .Font = New Font("Tahoma", 9.0F)})
         textValue = New TextBox With {
-            .Left = 18, .Top = 56, .Width = 382, .Height = 70, .Multiline = True,
+            .Left = 18, .Top = 56, .Width = 382, .Height = 70, .Multiline = True, .AcceptsReturn = True,
             .Text = bulb.Text, .BackColor = Color.FromArgb(38, 40, 43), .ForeColor = Color.WhiteSmoke
         }
         settings.Controls.Add(textValue)
@@ -192,6 +189,7 @@ Public Class formTextSettingsEditor
 
         previewTimer = New Timer With {.Interval = 90}
         AddHandler previewTimer.Tick, AddressOf PreviewTimer_Tick
+        AddHandler textValue.KeyPress, AddressOf TextValue_KeyPress
         AddHandler textValue.TextChanged, AddressOf TextControlChanged
         AddHandler fontButton.Click, AddressOf ChooseFont_Click
         AddHandler alignLeft.CheckedChanged, AddressOf AlignmentChanged
@@ -280,11 +278,11 @@ Public Class formTextSettingsEditor
         Try
             currentFont = New Font(If(String.IsNullOrWhiteSpace(bulb.FontName), "Arial", bulb.FontName),
                                    Math.Max(1.0F, bulb.FontSize), bulb.FontStyle, GraphicsUnit.Point)
-            Using dialog As New FontDialog With {.Font = currentFont, .ShowColor = False, .ShowEffects = True}
-                If dialog.ShowDialog(Me) <> DialogResult.OK Then Return
-                bulb.FontName = dialog.Font.Name
-                bulb.FontSize = dialog.Font.Size
-                bulb.FontStyle = dialog.Font.Style
+            Using selectedFont As Font = formToolIllumination.ShowB2SFontDialog(currentFont, Me, bulb.Text)
+                If selectedFont Is Nothing Then Return
+                bulb.FontName = selectedFont.Name
+                bulb.FontSize = selectedFont.SizeInPoints
+                bulb.FontStyle = selectedFont.Style
                 fontButton.Text = FontCaption()
                 MarkChanged()
             End Using
@@ -303,6 +301,12 @@ Public Class formTextSettingsEditor
             bulb.TextAlignment = Illumination.eTextAlignment.Center
         End If
         MarkChanged()
+    End Sub
+
+    Private Sub TextValue_KeyPress(ByVal sender As Object, ByVal e As KeyPressEventArgs)
+        If Not Char.IsLetter(e.KeyChar) Then Return
+        Dim lowerCase As Boolean = (Control.ModifierKeys And Keys.Shift) = Keys.Shift OrElse Control.IsKeyLocked(Keys.CapsLock)
+        e.KeyChar = If(lowerCase, Char.ToLower(e.KeyChar), Char.ToUpper(e.KeyChar))
     End Sub
 
     Private Sub TextControlChanged(ByVal sender As Object, ByVal e As EventArgs)
@@ -503,6 +507,8 @@ Public Class formTextSettingsEditor
             bulb.SelectionTolerance = originalSelectionTolerance
             bulb.SelectionFeather = originalSelectionFeather
             bulb.IsIlluminatedImageDirty = True
+        ElseIf DialogResult = DialogResult.OK Then
+            Illumination.TextSettingsDefaults.Save(bulb)
         End If
         If Backglass.currentTabPage IsNot Nothing Then
             Backglass.currentTabPage.RefreshEditorLighting()
