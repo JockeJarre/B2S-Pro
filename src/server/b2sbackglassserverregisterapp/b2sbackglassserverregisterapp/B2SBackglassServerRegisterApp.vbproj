@@ -177,4 +177,5 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup><Compile Include="LegacyComCleanup.vb" /></ItemGroup>
 </Project>

@@ -28,6 +28,12 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 - Add Save to My Templates and My Saved Templates for persistent local image collections, including images added directly to the folder.
 - Refresh Layers when Current Image switches between Backglass and DMD.
 
+### October 11 COM registration update — versions unchanged
+
+- Limit Server COM exposure to the existing B2S.Server contract, preserving its ProgID, class/interface/event identifiers, and callable interface.
+- Carry over legacy B2S ProgID and orphan CLSID cleanup from the upstream February 14 registration update, with explicit protection for the active B2S.Server identifiers.
+- Verify cleanup with in-memory stores and confirm the local VPX connection. Actual registry cleanup remains untested.
+
 ## 1.0.5 / Server 3.0.4 — 2026-10-10
 
 - Correct credit-pointer image trails on transparent B2S Pro canvases by clearing repaint edges fully and preserving the cleared clip region. Confirmed in VPX with Gottlieb 300; legacy rendering retains its existing path.

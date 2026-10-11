@@ -109,6 +109,7 @@ Public Class formBackglassServerRegApp
                         regRoot.OpenSubKey("WOW6432Node\CLSID", True).DeleteSubKeyTree(clsID, False)
                     End Using
                 End If
+                CleanupLegacyB2SEntries(CommandSilent)
                 ' do the register operation
                 ShellAndWait(regasmpath, "B2SBackglassServer.DLL")
                 ShellAndWait(regasmpath.Replace("\Framework\", "\Framework64\"), "B2SBackglassServer.DLL")
@@ -298,6 +299,36 @@ Public Class formBackglassServerRegApp
                 Next
             End If
         Catch
+        End Try
+    End Sub
+
+    Private Sub CleanupLegacyB2SEntries(commandSilent As Boolean)
+        Try
+            Dim views As New List(Of RegistryView) From {RegistryView.Registry32}
+            If Environment.Is64BitOperatingSystem Then views.Add(RegistryView.Registry64)
+            Dim plans As New Dictionary(Of RegistryView, LegacyComCleanup.Plan)
+            Dim totalProgIds As Integer = 0, totalClsids As Integer = 0
+            For Each view In views
+                Using store As New LegacyRegistryStore(view)
+                    Dim plan = LegacyComCleanup.Discover(store)
+                    plans(view) = plan
+                    totalProgIds += plan.ProgIds.Count
+                    totalClsids += plan.Clsids.Count
+                End Using
+            Next
+            If totalProgIds = 0 AndAlso totalClsids = 0 Then Return
+            If Not commandSilent AndAlso MessageBox.Show($"Found {totalProgIds} legacy B2S.* ProgID entries and {totalClsids} associated CLSIDs." & vbCrLf & vbCrLf & "Remove these leftover entries? B2S.Server and its COM identifiers are preserved.", "Clean Up Legacy Registry Entries", MessageBoxButtons.YesNo, MessageBoxIcon.Question) <> DialogResult.Yes Then Return
+            Dim deletedProgIds As Integer = 0, deletedClsids As Integer = 0
+            For Each view In views
+                Using store As New LegacyRegistryStore(view)
+                    Dim deleted = LegacyComCleanup.Execute(store, plans(view))
+                    deletedProgIds += deleted(0)
+                    deletedClsids += deleted(1)
+                End Using
+            Next
+            If Not commandSilent Then MessageBox.Show($"Removed {deletedProgIds} of {totalProgIds} ProgID entries and {deletedClsids} of {totalClsids} CLSID entries.", "Registry Cleanup Complete", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Catch ex As Exception
+            If Not commandSilent Then MessageBox.Show("Error during registry cleanup: " & ex.Message, "Registry Cleanup Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         End Try
     End Sub
 

@@ -1,10 +1,10 @@
-﻿#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
+#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
 Imports System.Text
 Imports System.Runtime.InteropServices
 Imports Microsoft.Win32
 Imports System.Drawing
 
-<ProgId("B2S.Server"), ComClass(Server.ClassID, Server.InterfaceID, Server.EventsID)>
+<ProgId("B2S.Server"), ComClass(Server.ClassID, Server.InterfaceID, Server.EventsID), ComVisible(True)>
 Public Class Server
 
     Implements IDisposable
