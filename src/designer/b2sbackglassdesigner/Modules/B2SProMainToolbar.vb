@@ -1,4 +1,4 @@
-Imports System.Drawing
+﻿Imports System.Drawing
 Imports System.Drawing.Drawing2D
 Imports System.Drawing.Imaging
 Imports System.Windows.Forms
@@ -192,6 +192,7 @@ Public Module B2SProMainToolbar
         If key.Contains("zoomout") Then Return "ZOOM" & vbLf & "OUT"
         If key.Contains("zoomin") Then Return "ZOOM" & vbLf & "IN"
         If key.Contains("importbackground") Then Return "IMPORT" & vbLf & "BACKGLASS" & vbLf & "IMAGE"
+        If key.Contains("addspeakergrill") Then Return "ADD" & vbLf & "SPEAKER" & vbLf & "GRILL"
         If key.Contains("backglassbrightness") Then Return "BACKGLASS" & vbLf & "BRIGHTNESS"
         If key.Contains("showilluframes") Then Return "LIGHTS"
         If key.Contains("new") Then Return "NEW"
@@ -280,6 +281,11 @@ Public Module B2SProMainToolbar
                         g.DrawLine(whitePen, 9, 12.5F, 18, 12.5F)
                         If key.Contains("in") Then g.DrawLine(whitePen, 13.5F, 8, 13.5F, 17)
                     End Using
+                ElseIf key.Contains("addspeakergrill") Then
+                    g.DrawRectangle(glow, 2, 8, 28, 16) : g.DrawRectangle(line, 2, 8, 28, 16)
+                    g.DrawEllipse(line, 5, 12, 8, 8)
+                    g.DrawEllipse(line, 19, 12, 8, 8)
+                    g.DrawRectangle(line, 14, 13, 3, 6)
                 ElseIf key.Contains("backglassbrightness") Then
                     Using sunFill As New SolidBrush(Color.White)
                         g.FillEllipse(sunFill, 10, 10, 12, 12)

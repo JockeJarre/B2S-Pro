@@ -281,6 +281,16 @@ Public Class formDesigner
         tsmiBrightness.Available = False
         tsmiReelsLEDs.Available = False
         tsmiIllumination.Available = False
+        Dim speakerGrillButton As New ToolStripButton With {
+            .Name = "tsbAddSpeakerGrill",
+            .Text = "Add Speaker Grill",
+            .ToolTipText = "Add or edit speaker grill panel",
+            .Enabled = tsmiBrightness.Enabled
+        }
+        AddHandler speakerGrillButton.Click, AddressOf EditAddedGrillPanel_Click
+        AddHandler tsmiBrightness.EnabledChanged,
+            Sub() speakerGrillButton.Enabled = tsmiBrightness.Enabled
+        tsB2SDesigner.Items.Insert(tsB2SDesigner.Items.IndexOf(tsbBackglassBrightnessEnhanced), speakerGrillButton)
         For Each item As ToolStripItem In tsmiBackglass.DropDownItems
             item.Available = (item Is tsmiCreateDarkBackglassImage OrElse item Is tsmiCreateIlluminatedBackglassImage)
         Next
@@ -419,6 +429,19 @@ Public Class formDesigner
         B2SProMainToolbar.ApplyStatusBar(ssB2SDesigner)
     End Sub
 
+    Private Sub EditAddedGrillPanel_Click(sender As Object, e As EventArgs)
+        If Backglass.currentTabPage Is Nothing OrElse Backglass.currentData.Image Is Nothing Then Return
+        If Backglass.currentData.AddedGrillOriginalHeight = 0 AndAlso (Backglass.currentData.GrillHeight > 0 OrElse Backglass.currentData.SmallGrillHeight > 0) Then
+            B2SMessageBox.Show("This backglass already has a grill. The add-on editor preserves existing grill artwork. Use a backglass without a grill to add a new panel.", AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+        Using editor As New formAddedGrillPanel(Backglass.currentTabPage)
+            If editor.ShowDialog(Me) = DialogResult.OK Then
+                LoadToolResourcesForm()
+                UpdateStatusBar(Me, Backglass.currentTabPage)
+            End If
+        End Using
+    End Sub
     Private zoomWindowButton As ToolStripButton
 
     Private Sub AddZoomWindowButton()
@@ -3245,6 +3268,7 @@ Public Class formDesigner
         UpdateStatusBar(Me, Backglass.currentTabPage)
         ' refresh rom filter
         RefreshIDFilter()
+        If formToolLayers IsNot Nothing AndAlso Not formToolLayers.IsDisposed Then formToolLayers.RefreshLayers()
     End Sub
 
     Private Sub ReelsAndLEDSettings_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles tsmiReelsAndLEDSettings.Click

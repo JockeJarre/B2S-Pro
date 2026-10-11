@@ -20,6 +20,14 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 - Hide the duplicate Reels & LEDs and Illumination menu tabs while retaining the toolbar commands; keep only dark and illuminated image exports visible in Backglass.
 - Replace the white progress bar with a permanently visible neon cyan bar, purple frame, percentage display, and an active-work pulse.
 
+### October 11 speaker-panel update — versions unchanged
+
+- Add the Add Speaker Grill toolbar command to append a separate panel without moving original artwork, lights, or scores.
+- Set the existing grill height automatically; retain the Server's existing grill show/hide behavior.
+- Embed eight speaker-panel templates with a picture-and-name picker, custom image import, height adjustment, undo, and safe panel removal.
+- Add Save to My Templates and My Saved Templates for persistent local image collections, including images added directly to the folder.
+- Refresh Layers when Current Image switches between Backglass and DMD.
+
 ## 1.0.5 / Server 3.0.4 — 2026-10-10
 
 - Correct credit-pointer image trails on transparent B2S Pro canvases by clearing repaint edges fully and preserving the cleared clip region. Confirmed in VPX with Gottlieb 300; legacy rendering retains its existing path.

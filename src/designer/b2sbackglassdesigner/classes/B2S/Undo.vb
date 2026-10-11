@@ -5,6 +5,7 @@ Public Class Undo
 
     Public Enum Type
         Undefined = 0
+        GrillPanelChanged = 90
         BulbAdded = 1
         ScoreAdded = 2
         BulbOrScoreMoved = 3
@@ -246,6 +247,10 @@ Public Class Undo
                     scores.Remove(score)
                     If Object.ReferenceEquals(target.Mouse.SelectedScore, score) Then target.Mouse.SelectedScore = Nothing
                 End If
+
+            Case Type.GrillPanelChanged
+                If undoing Then entry.RedoItem = New AddedGrillPanel.Snapshot(target.BackglassData)
+                DirectCast(If(undoing, entry.Item, entry.RedoItem), AddedGrillPanel.Snapshot).Restore(target)
 
             Case Type.ImageImported, Type.ImageReloaded, Type.ImageChanged
                 If undoing Then entry.RedoItem = target.Image

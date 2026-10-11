@@ -338,6 +338,7 @@ Public Class Backglass
             End Set
         End Property
 
+        Public Property AddedGrillOriginalHeight As Integer = 0
         Private _GrillHeight As Integer = 0
         Public Property GrillHeight() As Integer
             Get

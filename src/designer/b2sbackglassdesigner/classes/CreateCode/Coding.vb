@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Text
 Imports System.Drawing.Drawing2D
 Imports System.Drawing.Text
@@ -168,6 +168,7 @@ Public Class Coding
             AddXMLAttribute(XML, nodeHeader, "DMDDefaultLocation", "LocX", Backglass.currentData.DMDDefaultLocation.X.ToString())
             AddXMLAttribute(XML, nodeHeader, "DMDDefaultLocation", "LocY", Backglass.currentData.DMDDefaultLocation.Y.ToString())
             AddXMLAttribute(XML, nodeHeader, "GrillHeight", "Value", CInt(.GrillHeight).ToString())
+            If .AddedGrillOriginalHeight > 0 Then nodeHeader.SetAttribute("B2SProAddedGrillOriginalHeight", .AddedGrillOriginalHeight.ToString())
             If .SmallGrillHeight > 0 Then
                 AddXMLAttribute(XML, nodeHeader, "GrillHeight", "Small", CInt(.SmallGrillHeight - .GrillHeight).ToString())
             End If
@@ -1120,6 +1121,7 @@ Public Class Coding
                     .ReelRollingInterval = CInt(topnode.SelectSingleNode("ReelRollingInterval").Attributes("Value").InnerText)
                     .ReelIntermediateImageCount = CInt(topnode.SelectSingleNode("ReelIntermediateImageCount").Attributes("Value").InnerText)
                     .GrillHeight = CInt(topnode.SelectSingleNode("GrillHeight").Attributes("Value").InnerText)
+                If topnode.Attributes("B2SProAddedGrillOriginalHeight") IsNot Nothing Then Integer.TryParse(topnode.Attributes("B2SProAddedGrillOriginalHeight").Value, .AddedGrillOriginalHeight)
                     If topnode.SelectSingleNode("GrillHeight").Attributes("Small") IsNot Nothing Then
                         .SmallGrillHeight = CInt(topnode.SelectSingleNode("GrillHeight").Attributes("Small").InnerText)
                     End If

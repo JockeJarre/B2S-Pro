@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -169,6 +169,7 @@
     <Compile Include="Classes\Reels\ScoreInfo.vb" />
     <Compile Include="Classes\Reels\Reel3DEffect.vb" />
     <Compile Include="Classes\Save.vb" />
+    <Compile Include="Forms\formAddedGrillPanel.vb" />
     <Compile Include="Classes\Illumination\Lights.vb" />
     <Compile Include="Classes\Illumination\LightPropertyClipboard.vb" />
     <Compile Include="Classes\Illumination\LightGlowDefaults.vb" />
@@ -843,4 +844,15 @@
     <Compile Include="..\..\shared\PhysicsBallState.vb"><Link>Shared\PhysicsBallState.vb</Link></Compile>
   </ItemGroup>
 
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\SpeakerPanels\Williams Gold.png"><LogicalName>B2SPro.SpeakerPanel.0.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Resources\SpeakerPanels\Bally Gold.png"><LogicalName>B2SPro.SpeakerPanel.1.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Resources\SpeakerPanels\Bally Silver.png"><LogicalName>B2SPro.SpeakerPanel.2.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Resources\SpeakerPanels\Gottlieb Pinball.png"><LogicalName>B2SPro.SpeakerPanel.3.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Resources\SpeakerPanels\Matte Black Honeycomb.png"><LogicalName>B2SPro.SpeakerPanel.4.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Resources\SpeakerPanels\Black Stereo Bezel with Dual Grilles.png"><LogicalName>B2SPro.SpeakerPanel.5.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Resources\SpeakerPanels\Black Arcade Speaker and DMD Bezel.png"><LogicalName>B2SPro.SpeakerPanel.6.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Resources\SpeakerPanels\Williams Silver.png"><LogicalName>B2SPro.SpeakerPanel.7.png</LogicalName></EmbeddedResource>
+  </ItemGroup>
 </Project>

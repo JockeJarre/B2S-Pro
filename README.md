@@ -23,6 +23,7 @@ Designer and Server ZIPs, and their two SHA-256 checksum files.
 ## Highlights
 
 - Modernized workspace, toolbar, menus, and persistent window layouts
+- Speaker-grill panel add-ons with eight embedded templates, picture pickers, custom artwork, and locally saved templates
 - Full Layers window with ordering, visibility, locking, naming, masks, and direct object editing
 - Add Snippet, Make Snippet, and Quick Selection workflows
 - One-picture and animated-GIF animation creation
@@ -43,6 +44,8 @@ Designer and Server ZIPs, and their two SHA-256 checksum files.
 The illustrated [B2S Pro online guide](https://kwildman69.github.io/B2S-Pro/) is published from the documentation source in this repository. The same help content is embedded in the application so it cannot be separated from the installed program.
 
 The original Backglass Designer help remains intact alongside the new B2S Pro feature guide.
+
+See [Speaker grill panels](docs/speaker-grill-panels.md) for the panel and saved-template workflow.
 
 ## Source layout
 

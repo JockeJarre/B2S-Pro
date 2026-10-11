@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 
 Imports System.Drawing.Drawing2D
 
@@ -1479,4 +1479,7 @@ Public Class B2STabPage
         End If
     End Sub
 
+    Public Sub ClearAddedPanelImageCache()
+        PictureBox.Lights.ClearImages()
+    End Sub
 End Class

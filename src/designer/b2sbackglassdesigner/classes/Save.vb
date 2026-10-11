@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Text
 Imports System.IO
 Imports System.Linq
@@ -114,6 +114,7 @@ Public Class Save
                     .ReelIntermediateImageCount = CInt(topnode.SelectSingleNode("ReelIntermediateImageCount").Attributes("Value").InnerText)
                 End If
                 .GrillHeight = CInt(topnode.SelectSingleNode("GrillHeight").Attributes("Value").InnerText)
+                If topnode.Attributes("B2SProAddedGrillOriginalHeight") IsNot Nothing Then Integer.TryParse(topnode.Attributes("B2SProAddedGrillOriginalHeight").Value, .AddedGrillOriginalHeight)
                 If topnode.SelectSingleNode("GrillHeight").Attributes("Small") IsNot Nothing Then
                     .SmallGrillHeight = CInt(topnode.SelectSingleNode("GrillHeight").Attributes("Small").InnerText)
                 End If
@@ -648,6 +649,7 @@ Public Class Save
                 AddXMLAttribute(XML, nodeHeader, "ReelRollingInterval", "Value", .ReelRollingInterval.ToString())
                 AddXMLAttribute(XML, nodeHeader, "ReelIntermediateImageCount", "Value", .ReelIntermediateImageCount.ToString())
                 AddXMLAttribute(XML, nodeHeader, "GrillHeight", "Value", CInt(.GrillHeight).ToString())
+                If .AddedGrillOriginalHeight > 0 Then nodeHeader.SetAttribute("B2SProAddedGrillOriginalHeight", .AddedGrillOriginalHeight.ToString())
                 If .SmallGrillHeight > 0 Then
                     AddXMLAttribute(XML, nodeHeader, "GrillHeight", "Small", CInt(.SmallGrillHeight).ToString())
                 End If
