@@ -32,6 +32,8 @@ Public Class formDesigner
     Private mainNormalBounds As Rectangle = Rectangle.Empty
     Private previousMainWindowState As FormWindowState = FormWindowState.Normal
     Private correctingMainWindowBounds As Boolean
+    Private pendingHeaderDragControl As Control
+    Private pendingHeaderDragOrigin As Point
 
     Private Const WM_NCHITTEST As Integer = &H84
     Private Const WM_NCLBUTTONDOWN As Integer = &HA1
@@ -592,7 +594,12 @@ Public Class formDesigner
         }
         b2sProLogo.Image = LoadB2SProLogoImage()
         AddHandler b2sProHeader.MouseDown, AddressOf MainHeader_MouseDown
+        AddHandler b2sProHeader.MouseMove, AddressOf MainHeader_MouseMove
+        AddHandler b2sProHeader.MouseUp, AddressOf MainHeader_MouseUp
         AddHandler b2sProHeader.DoubleClick, AddressOf MainHeader_DoubleClick
+        AddHandler b2sProLogo.MouseDown, AddressOf MainHeader_MouseDown
+        AddHandler b2sProLogo.MouseMove, AddressOf MainHeader_MouseMove
+        AddHandler b2sProLogo.MouseUp, AddressOf MainHeader_MouseUp
 
         Dim brandingPanel As New TableLayoutPanel With {
             .Name = "pnlB2SBranding",
@@ -605,6 +612,9 @@ Public Class formDesigner
         }
         brandingPanel.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
         brandingPanel.Controls.Add(b2sProLogo, 0, 0)
+        AddHandler brandingPanel.MouseDown, AddressOf MainHeader_MouseDown
+        AddHandler brandingPanel.MouseMove, AddressOf MainHeader_MouseMove
+        AddHandler brandingPanel.MouseUp, AddressOf MainHeader_MouseUp
 
         ' File commands remain available from the regular File menu. Do not
         ' duplicate them in the logo area or the main command ribbon.
@@ -623,6 +633,8 @@ Public Class formDesigner
             .BackColor = Color.FromArgb(1, 2, 4)
         }
         AddHandler windowButtons.MouseDown, AddressOf MainHeader_MouseDown
+        AddHandler windowButtons.MouseMove, AddressOf MainHeader_MouseMove
+        AddHandler windowButtons.MouseUp, AddressOf MainHeader_MouseUp
         AddHandler windowButtons.DoubleClick, AddressOf MainHeader_DoubleClick
         b2sWindowMinimize = CreateMainWindowButton("—", "Minimize")
         b2sWindowMaximize = CreateMainWindowButton("□", "Maximize / Restore")
@@ -655,6 +667,12 @@ Public Class formDesigner
         B2STab.BringToFront()
         AddHandler b2sProHeader.Paint, AddressOf PaintCanvasBoundary
         Me.MainMenuStrip = msB2SDesigner
+        AddHandler msB2SDesigner.MouseDown, AddressOf MainMenuBlankArea_MouseDown
+        AddHandler msB2SDesigner.MouseMove, AddressOf MainHeader_MouseMove
+        AddHandler msB2SDesigner.MouseUp, AddressOf MainHeader_MouseUp
+        AddHandler tsB2SDesigner.MouseDown, AddressOf MainToolbarBlankArea_MouseDown
+        AddHandler tsB2SDesigner.MouseMove, AddressOf MainHeader_MouseMove
+        AddHandler tsB2SDesigner.MouseUp, AddressOf MainHeader_MouseUp
     End Sub
 
     Private Sub PaintCanvasBoundary(sender As Object, e As PaintEventArgs)
@@ -797,6 +815,42 @@ Public Class formDesigner
 
     Private Sub MainHeader_MouseDown(sender As Object, e As MouseEventArgs)
         If e.Button <> MouseButtons.Left OrElse Me.WindowState = FormWindowState.Minimized Then Return
+        pendingHeaderDragControl = TryCast(sender, Control)
+        If pendingHeaderDragControl Is Nothing Then Return
+        pendingHeaderDragOrigin = pendingHeaderDragControl.PointToScreen(e.Location)
+        pendingHeaderDragControl.Capture = True
+    End Sub
+
+    Private Sub MainHeader_MouseUp(sender As Object, e As MouseEventArgs)
+        If e.Button <> MouseButtons.Left Then Return
+        CancelPendingHeaderDrag()
+    End Sub
+
+    Private Sub CancelPendingHeaderDrag()
+        Dim source As Control = pendingHeaderDragControl
+        pendingHeaderDragControl = Nothing
+        If source IsNot Nothing Then source.Capture = False
+    End Sub
+
+    Private Sub MainHeader_MouseMove(sender As Object, e As MouseEventArgs)
+        If pendingHeaderDragControl Is Nothing Then Return
+        If e.Button <> MouseButtons.Left Then
+            CancelPendingHeaderDrag()
+            Return
+        End If
+        Dim source As Control = TryCast(sender, Control)
+        If source Is Nothing Then Return
+        Dim pointer As Point = source.PointToScreen(e.Location)
+        Dim dragSize As Size = SystemInformation.DragSize
+        Dim clickArea As New Rectangle(pendingHeaderDragOrigin.X - dragSize.Width \ 2,
+                                       pendingHeaderDragOrigin.Y - dragSize.Height \ 2,
+                                       dragSize.Width, dragSize.Height)
+        If clickArea.Contains(pointer) Then Return
+        CancelPendingHeaderDrag()
+        BeginMainHeaderDrag()
+    End Sub
+
+    Private Sub BeginMainHeaderDrag()
         If Me.WindowState = FormWindowState.Maximized Then
             Dim cursorPoint As Point = Cursor.Position
             Dim restoreArea As Rectangle = VisibleMainNormalBounds(Screen.FromPoint(cursorPoint).WorkingArea)
@@ -825,6 +879,7 @@ Public Class formDesigner
     End Sub
 
     Private Sub MainHeader_DoubleClick(sender As Object, e As EventArgs)
+        CancelPendingHeaderDrag()
         ToggleMainWindowMaximize(sender, e)
     End Sub
 

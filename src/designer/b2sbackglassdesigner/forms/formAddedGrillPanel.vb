@@ -209,7 +209,7 @@ Public Class formAddedGrillPanel
     Private ReadOnly choice As New ComboBox With {.DropDownStyle = ComboBoxStyle.DropDownList, .Width = 190}
     Private ReadOnly panelHeight As New NumericUpDown With {.Minimum = 24, .Maximum = 4096, .Width = 95}
     Private ReadOnly preview As New PictureBox With {.Dock = DockStyle.Fill, .SizeMode = PictureBoxSizeMode.Zoom, .BackColor = Color.FromArgb(3, 5, 9)}
-    Private ReadOnly saveTemplateButton As New Button With {.Text = "Save to My Templates", .AutoSize = True, .Enabled = False}
+    Private ReadOnly saveTemplateButton As New Button With {.Text = "Save to My Template", .AutoSize = True, .Enabled = False}
     Private imported As Image
     Private rendered As Bitmap
     Public Sub New(page As B2STabPage)
@@ -235,13 +235,8 @@ Public Class formAddedGrillPanel
             choice.SelectedIndex = AddedGrillPanel.TemplateNames.Length
         End If
         Dim controlsRow As New FlowLayoutPanel With {.Dock = DockStyle.Top, .Height = 110, .Padding = New Padding(10), .WrapContents = True}
-        controlsRow.Controls.Add(New Label With {.Text = "Panel", .AutoSize = True, .Margin = New Padding(3, 8, 3, 3)})
-        controlsRow.Controls.Add(choice)
         Dim importButton As New Button With {.Text = "Import image...", .AutoSize = True}
         AddHandler importButton.Click, AddressOf ImportImage
-        controlsRow.Controls.Add(importButton)
-        controlsRow.Controls.Add(New Label With {.Text = "Height (pixels)", .AutoSize = True, .Margin = New Padding(3, 8, 3, 3)})
-        controlsRow.Controls.Add(panelHeight)
         Dim browse As New Button With {.Text = "Choose template...", .AutoSize = True}
         AddHandler browse.Click, Sub()
                                      Using gallery As New formGrillTemplatePicker(choice.SelectedIndex)
@@ -249,7 +244,10 @@ Public Class formAddedGrillPanel
                                      End Using
                                  End Sub
         controlsRow.Controls.Add(browse)
-        Dim savedBrowse As New Button With {.Text = "My Saved Templates", .AutoSize = True}
+        controlsRow.Controls.Add(importButton)
+        controlsRow.Controls.Add(New Label With {.Text = "Height (pixels)", .AutoSize = True, .Margin = New Padding(3, 8, 3, 3)})
+        controlsRow.Controls.Add(panelHeight)
+        Dim savedBrowse As New Button With {.Text = "My Saved Speaker Grills", .AutoSize = True}
         AddHandler savedBrowse.Click, Sub()
                                           Try
                                               Using gallery As New formGrillTemplatePicker(-1, True)
@@ -259,9 +257,8 @@ Public Class formAddedGrillPanel
                                               MessageBox.Show(Me, ex.Message, "Cannot open saved templates", MessageBoxButtons.OK, MessageBoxIcon.Error)
                                           End Try
                                       End Sub
-        controlsRow.Controls.Add(savedBrowse)
         AddHandler saveTemplateButton.Click, Sub()
-                                                Dim name = Microsoft.VisualBasic.Interaction.InputBox("Name this speaker grill template:", "Save to My Templates", Path.GetFileNameWithoutExtension(choice.Text))
+                                                Dim name = Microsoft.VisualBasic.Interaction.InputBox("Name this speaker grill template:", "Save to My Template", Path.GetFileNameWithoutExtension(choice.Text))
                                                 If String.IsNullOrWhiteSpace(name) Then Return
                                                 Try
                                                     Dim saved = AddedGrillPanel.SaveTemplate(imported, name)
@@ -271,6 +268,7 @@ Public Class formAddedGrillPanel
                                                 End Try
                                             End Sub
         controlsRow.Controls.Add(saveTemplateButton)
+        controlsRow.Controls.Add(savedBrowse)
         Dim explanation As New Label With {.Dock = DockStyle.Top, .Height = 46, .Padding = New Padding(12, 6, 12, 2), .Text = "Width matches your backglass. Original artwork and objects stay in place. Add lights and score reels normally after applying. Template openings are artwork; existing DMD routing is preserved."}
         Dim buttons As New FlowLayoutPanel With {.Dock = DockStyle.Bottom, .Height = 54, .FlowDirection = FlowDirection.RightToLeft, .Padding = New Padding(10)}
         Dim cancel As New Button With {.Text = "Cancel", .DialogResult = DialogResult.Cancel, .Width = 90}
@@ -355,7 +353,7 @@ Public Class formGrillTemplatePicker
     Private ReadOnly pictures As New Generic.List(Of Image)
     Public Sub New(current As Integer, Optional saved As Boolean = False)
         Name = If(saved, "formSavedGrillTemplatePicker", "formGrillTemplatePicker")
-        Text = If(saved, "My Saved Templates", "Choose Speaker & Grill Template")
+        Text = If(saved, "My Saved Speaker Grills", "Choose Speaker & Grill Template")
         StartPosition = FormStartPosition.CenterParent
         Size = New Size(1040, 740)
         MinimumSize = New Size(700, 500)
@@ -397,7 +395,7 @@ Public Class formGrillTemplatePicker
         Next
         If saved Then
             Directory.CreateDirectory(AddedGrillPanel.SavedTemplatesFolder)
-            Dim hint As New Label With {.Dock = DockStyle.Top, .Height = 58, .Padding = New Padding(12, 4, 12, 4), .Text = If(grid.Controls.Count = 0, "No saved templates yet. Import an image and use Save to My Templates." & vbCrLf, "") & "You can also add images directly to: " & AddedGrillPanel.SavedTemplatesFolder}
+            Dim hint As New Label With {.Dock = DockStyle.Top, .Height = 58, .Padding = New Padding(12, 4, 12, 4), .Text = If(grid.Controls.Count = 0, "No saved templates yet. Import an image and use Save to My Template." & vbCrLf, "") & "You can also add images directly to: " & AddedGrillPanel.SavedTemplatesFolder}
             Controls.Add(hint)
             hint.BringToFront()
         End If

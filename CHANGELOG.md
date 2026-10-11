@@ -4,6 +4,13 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 
 ## 1.0.7 / Server 3.0.6 — 2026-10-11
 
+### Confirmed local UI update — versions unchanged
+
+- Restore window dragging from the logo and blank header/menu/toolbar areas. A stationary click keeps the window maximized; an actual drag restores and moves it between monitors.
+- Replace the visible speaker-panel dropdown with Choose Template, followed by Import Image, Height, Save to My Template and My Saved Speaker Grills. Preserve the existing template selection and preview behavior.
+
+### Initial release
+
 - Add an Import DMD Image toolbar shortcut and default GIF/PNG sequence imports to the active canvas.
 - Render DMD ball, motion-path, pivot, masked and behind-canvas artwork using the existing animation model, preserving ordinary legacy DMD drawing.
 - Update both runtime packages and setup programs; preserve the B2S.Server COM identity and VPX connection.
