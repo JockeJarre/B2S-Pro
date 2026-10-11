@@ -149,7 +149,7 @@ Partial Class formDesigner
         Me.tsbHelp = New System.Windows.Forms.ToolStripButton()
         Me.ssB2SDesigner = New System.Windows.Forms.StatusStrip()
         Me.tsLabelStatusInfo = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.tsProgress = New System.Windows.Forms.ToolStripProgressBar()
+        Me.tsProgress = New B2SNeonProgressHost()
         Me.tsLabelFileInfo = New System.Windows.Forms.ToolStripStatusLabel()
         Me.tsLabelFileSize = New System.Windows.Forms.ToolStripStatusLabel()
         Me.tsLabelMarker = New System.Windows.Forms.ToolStripStatusLabel()
@@ -1018,7 +1018,7 @@ Partial Class formDesigner
     Friend WithEvents ToolStripSeparator13 As System.Windows.Forms.ToolStripSeparator
     Friend WithEvents tsmiShowScoring As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents tsbShowScoring As System.Windows.Forms.ToolStripButton
-    Friend WithEvents tsProgress As System.Windows.Forms.ToolStripProgressBar
+    Friend WithEvents tsProgress As B2SNeonProgressHost
     Friend WithEvents timerProgressReset As System.Windows.Forms.Timer
     Friend WithEvents ToolStripSeparator15 As System.Windows.Forms.ToolStripSeparator
     Friend WithEvents tsmiBrightness As System.Windows.Forms.ToolStripMenuItem

@@ -12,6 +12,14 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 - Retain bundled offline OCR/PDF imports, digit proportions, and the previously confirmed transparent credit-pointer repaint correction.
 - Update both setup programs and release metadata. Server behavior remains unchanged from 3.0.4.
 
+### October 11 update — versions unchanged
+
+- Add one FIT toolbar button with a cyan square and four-way arrow, using the existing Zoom to Window command.
+- Preserve the saved Lamp Properties window size when reopening it.
+- Keep blank menu, toolbar, and logo clicks from restoring a maximized Designer window.
+- Hide the duplicate Reels & LEDs and Illumination menu tabs while retaining the toolbar commands; keep only dark and illuminated image exports visible in Backglass.
+- Replace the white progress bar with a permanently visible neon cyan bar, purple frame, percentage display, and an active-work pulse.
+
 ## 1.0.5 / Server 3.0.4 — 2026-10-10
 
 - Correct credit-pointer image trails on transparent B2S Pro canvases by clearing repaint edges fully and preserving the cleared clip region. Confirmed in VPX with Gottlieb 300; legacy rendering retains its existing path.

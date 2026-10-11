@@ -279,6 +279,11 @@ Public Class formDesigner
         Dim brightnessInsertIndex As Integer = tsB2SDesigner.Items.IndexOf(tsbImportBackgroundImage) + 1
         tsB2SDesigner.Items.Insert(brightnessInsertIndex, tsbBackglassBrightnessEnhanced)
         tsmiBrightness.Available = False
+        tsmiReelsLEDs.Available = False
+        tsmiIllumination.Available = False
+        For Each item As ToolStripItem In tsmiBackglass.DropDownItems
+            item.Available = (item Is tsmiCreateDarkBackglassImage OrElse item Is tsmiCreateIlluminatedBackglassImage)
+        Next
 
         ' Import Backglass Image, Brightness and Show Frames form one dedicated
         ' command group. Move the existing divider after Show Frames so Frames
@@ -352,6 +357,7 @@ Public Class formDesigner
         ' place it where it remains visible beside the two-step output workflow.
         ssB2SDesigner.Items.Remove(tsProgress)
         tsProgress.ToolTipText = "Save and export progress"
+        tsProgress.Visible = True
         tsB2SDesigner.Items.Insert(previewIndex + 4, tsProgress)
         tsB2SDesigner.Items.Insert(previewIndex + 5, previewDividerAfter)
 
@@ -379,6 +385,7 @@ Public Class formDesigner
         ' Phase 2: apply the real grouped, glossy B2S Pro toolbar renderer while
         ' preserving every existing ToolStripItem and click handler.
         B2SProMainToolbar.Apply(tsB2SDesigner)
+        AddZoomWindowButton()
 
         ' Spread the existing toolbar controls across the full available header width.
         ' This only adjusts margins; every original item and click handler stays intact.
@@ -412,6 +419,56 @@ Public Class formDesigner
         B2SProMainToolbar.ApplyStatusBar(ssB2SDesigner)
     End Sub
 
+    Private zoomWindowButton As ToolStripButton
+
+    Private Sub AddZoomWindowButton()
+        If zoomWindowButton IsNot Nothing Then
+            StyleZoomWindowButton()
+            Return
+        End If
+        zoomWindowButton = New ToolStripButton With {
+            .Name = "tsbZoomToWindow",
+            .Text = "FIT",
+            .DisplayStyle = ToolStripItemDisplayStyle.Text,
+            .ForeColor = Color.LimeGreen,
+            .Font = New Font("Segoe UI", 9.0F, FontStyle.Bold),
+            .AutoSize = False,
+            .Size = New Size(42, 56),
+            .Margin = New Padding(2, 4, 2, 1),
+            .ToolTipText = "Zoom to Window",
+            .AccessibleName = "Zoom to Window",
+            .Enabled = tsmiZoomToWindow.Enabled
+        }
+        AddHandler zoomWindowButton.Click, AddressOf ZoomToWindow_Click
+        AddHandler tsmiZoomToWindow.EnabledChanged,
+            Sub() zoomWindowButton.Enabled = tsmiZoomToWindow.Enabled
+        StyleZoomWindowButton()
+        tsB2SDesigner.Items.Insert(tsB2SDesigner.Items.IndexOf(tsbZoomIn) + 1, zoomWindowButton)
+    End Sub
+    Private Sub StyleZoomWindowButton()
+        Dim icon As New Bitmap(26, 26)
+        Using graphics As Graphics = Graphics.FromImage(icon)
+            graphics.SmoothingMode = Drawing2D.SmoothingMode.AntiAlias
+            Using pen As New Pen(Color.FromArgb(0, 210, 255), 1.25F)
+                graphics.DrawRectangle(pen, 1, 1, 23, 23)
+                graphics.DrawLine(pen, 5, 13, 21, 13)
+                graphics.DrawLine(pen, 13, 5, 13, 21)
+                graphics.DrawLines(pen, New Point() {New Point(8, 10), New Point(5, 13), New Point(8, 16)})
+                graphics.DrawLines(pen, New Point() {New Point(18, 10), New Point(21, 13), New Point(18, 16)})
+                graphics.DrawLines(pen, New Point() {New Point(10, 8), New Point(13, 5), New Point(16, 8)})
+                graphics.DrawLines(pen, New Point() {New Point(10, 18), New Point(13, 21), New Point(16, 18)})
+            End Using
+        End Using
+        zoomWindowButton.Image = icon
+        zoomWindowButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText
+        zoomWindowButton.TextImageRelation = TextImageRelation.ImageAboveText
+        zoomWindowButton.ImageAlign = ContentAlignment.MiddleCenter
+        zoomWindowButton.TextAlign = ContentAlignment.MiddleCenter
+        zoomWindowButton.ImageScaling = ToolStripItemImageScaling.None
+        zoomWindowButton.ForeColor = Color.White
+        zoomWindowButton.Font = New Font("Segoe UI Condensed", 6.5F, FontStyle.Regular)
+        zoomWindowButton.Size = New Size(42, 56)
+    End Sub
     Private Function CreateStackedToolbarField(caption As String, source As ToolStripComboBox, fieldWidth As Integer) As ToolStripControlHost
         Dim field As New TableLayoutPanel With {
             .Name = "pnl" & caption.Replace(" ", String.Empty),
@@ -501,8 +558,6 @@ Public Class formDesigner
             .TabStop = False
         }
         b2sProLogo.Image = LoadB2SProLogoImage()
-        AddHandler b2sProLogo.MouseDown, AddressOf MainHeader_MouseDown
-        AddHandler b2sProLogo.DoubleClick, AddressOf MainHeader_DoubleClick
         AddHandler b2sProHeader.MouseDown, AddressOf MainHeader_MouseDown
         AddHandler b2sProHeader.DoubleClick, AddressOf MainHeader_DoubleClick
 
@@ -515,8 +570,6 @@ Public Class formDesigner
             .Padding = New Padding(4, 2, 4, 2),
             .BackColor = Color.FromArgb(5, 7, 12)
         }
-        AddHandler brandingPanel.MouseDown, AddressOf MainHeader_MouseDown
-        AddHandler brandingPanel.DoubleClick, AddressOf MainHeader_DoubleClick
         brandingPanel.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
         brandingPanel.Controls.Add(b2sProLogo, 0, 0)
 
@@ -554,9 +607,6 @@ Public Class formDesigner
         tsB2SDesigner.Dock = DockStyle.Fill
         tsB2SDesigner.Margin = Padding.Empty
         tsB2SDesigner.Location = Point.Empty
-        AddHandler msB2SDesigner.MouseDown, AddressOf MainMenuBlankArea_MouseDown
-        AddHandler msB2SDesigner.DoubleClick, AddressOf MainMenuBlankArea_DoubleClick
-        AddHandler tsB2SDesigner.MouseDown, AddressOf MainToolbarBlankArea_MouseDown
 
         b2sProHeader.Controls.Add(brandingPanel, 0, 0)
         b2sProHeader.SetRowSpan(brandingPanel, 2)
@@ -1372,6 +1422,7 @@ Public Class formDesigner
         ' the approved full-width B2S Pro toolbar spacing immediately after
         ' that theme pass so it remains spread out after a project is loaded.
         B2SProMainToolbar.Apply(tsB2SDesigner)
+        AddZoomWindowButton()
         B2SProMainToolbar.ApplyMenu(msB2SDesigner)
         B2SProMainToolbar.ApplyStatusBar(ssB2SDesigner)
         ApplyHeaderToolbarSpacing()
@@ -1584,7 +1635,7 @@ Public Class formDesigner
     Private Sub ProgressReset_Tick(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles timerProgressReset.Tick
         timerProgressReset.Stop()
         tsProgress.Value = 0
-        tsProgress.Visible = False
+        tsProgress.Visible = True
     End Sub
 
     Private Sub Coding_ReportProgress(sender As Object, e As Coding.CodingProgressEventArgs) Handles coding.ReportProgress
@@ -4073,6 +4124,7 @@ Public Class formDesigner
            CUInt(nowTick - lastProgressPaintTick) >= ProgressPaintIntervalMs Then
             lastProgressPaintTick = nowTick
             progressHost.Update()
+            tsProgress.Control.Update()
         End If
 
         If timerProgressReset.Enabled Then

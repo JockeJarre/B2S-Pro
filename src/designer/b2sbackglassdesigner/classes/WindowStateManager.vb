@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Collections.Generic
 Imports System.Drawing
 Imports System.IO
@@ -153,18 +153,10 @@ Public NotInheritable Class WindowStateManager
 
             ' Never let a stale layout squeeze a tool window below the size that
             ' its controls required when the form was created at the current DPI.
-            If IsToolWindow(form) Then
+            If IsToolWindow(form) AndAlso
+               Not String.Equals(FormKey(form), "formToolIllumination", StringComparison.OrdinalIgnoreCase) Then
                 bounds.Width = Math.Max(bounds.Width, form.Width)
                 bounds.Height = Math.Max(bounds.Height, form.Height)
-
-                ' The illumination editor is a compact property panel. A stale
-                ' full-screen width can be saved if a themed title-bar gesture is
-                ' interrupted. Reject that invalid size instead of reopening the
-                ' panel across the designer workspace on every launch.
-                If String.Equals(FormKey(form), "formToolIllumination", StringComparison.OrdinalIgnoreCase) AndAlso
-                   (bounds.Width > form.Width * 2 OrElse bounds.Height > form.Height * 2) Then
-                    bounds.Size = form.Size
-                End If
             End If
             If form.Owner IsNot Nothing AndAlso form.Owner.IsHandleCreated Then
                 ' Owned tool windows and dialogs belong with the main designer.

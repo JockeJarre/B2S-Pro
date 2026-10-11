@@ -96,7 +96,12 @@ Public Module B2SProMainToolbar
                 If TypeOf item Is ToolStripStatusLabel Then
                     item.BackColor = Color.Transparent
                     item.Padding = New Padding(9, 0, 9, 0)
-                ElseIf TypeOf item Is ToolStripProgressBar Then
+                ElseIf TypeOf item Is B2SNeonProgressHost Then
+            item.AutoSize = False
+            item.Size = New Size(176, 24)
+            item.Margin = New Padding(8, 18, 8, 14)
+            item.Overflow = ToolStripItemOverflow.Never
+        ElseIf TypeOf item Is ToolStripProgressBar Then
                     ' ToolStripProgressBar hosts a native ProgressBar, which throws
                     ' at startup when assigned a transparent background color.
                     item.BackColor = Color.FromArgb(1, 3, 6)
@@ -148,6 +153,11 @@ Public Module B2SProMainToolbar
             textBox.AutoSize = False
             textBox.Width = Math.Max(textBox.Width, 120)
             textBox.Margin = New Padding(4, 20, 4, 16)
+        ElseIf TypeOf item Is B2SNeonProgressHost Then
+            item.AutoSize = False
+            item.Size = New Size(176, 24)
+            item.Margin = New Padding(8, 18, 8, 14)
+            item.Overflow = ToolStripItemOverflow.Never
         ElseIf TypeOf item Is ToolStripProgressBar Then
             Dim progress As ToolStripProgressBar = DirectCast(item, ToolStripProgressBar)
             progress.AutoSize = False
@@ -696,6 +706,8 @@ Public Module B2SProMainToolbar
 
         Protected Overrides Sub OnRenderItemImage(e As ToolStripItemImageRenderEventArgs)
             If e.Image Is Nothing Then Return
+            Dim imageBounds As Rectangle = e.ImageRectangle
+            If e.Item.Name = "tsbZoomToWindow" Then imageBounds.Offset(0, 6)
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias
             e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic
             e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality
@@ -714,7 +726,7 @@ Public Module B2SProMainToolbar
                         New Single() {0.0F, 0.0F, 0.0F, 0.0F, 1.0F}})
                     attributes.SetColorMatrix(disabledMatrix)
                     e.Graphics.DrawImage(e.Image,
-                                         e.ImageRectangle,
+                                         imageBounds,
                                          0,
                                          0,
                                          e.Image.Width,
@@ -726,7 +738,7 @@ Public Module B2SProMainToolbar
             End If
 
             e.Graphics.DrawImage(e.Image,
-                                 e.ImageRectangle,
+                                 imageBounds,
                                  0,
                                  0,
                                  e.Image.Width,
@@ -735,6 +747,11 @@ Public Module B2SProMainToolbar
         End Sub
 
         Protected Overrides Sub OnRenderItemText(e As ToolStripItemTextRenderEventArgs)
+            If e.Item.Name = "tsbZoomToWindow" Then
+                Dim textBounds As Rectangle = e.TextRectangle
+                textBounds.Offset(0, 6)
+                e.TextRectangle = textBounds
+            End If
             If TypeOf e.Item Is ToolStripButton Then
                 e.TextColor = If(e.Item.Enabled, B2SProUIFoundation.Palette.TextPrimary, Color.FromArgb(105, 115, 135))
                 e.TextFont = New Font("Segoe UI Condensed", 6.5F, FontStyle.Regular)
@@ -1070,3 +1087,116 @@ Public Module B2SProMainToolbar
         End Property
     End Class
 End Module
+
+Public Class B2SNeonProgressHost
+    Inherits ToolStripControlHost
+    Public Sub New()
+        MyBase.New(New B2SNeonProgressControl())
+        AutoSize = False
+        Size = New Size(176, 24)
+    End Sub
+    Public Property Value As Integer
+        Get
+            Return DirectCast(Control, B2SNeonProgressControl).Value
+        End Get
+        Set(value As Integer)
+            DirectCast(Control, B2SNeonProgressControl).Value = value
+        End Set
+    End Property
+    Public Property [Step] As Integer = 1
+End Class
+
+Public Class B2SNeonProgressControl
+    Inherits Control
+    Private progressValue As Integer
+    Private pulsePosition As Integer
+    Private ReadOnly pulseTimer As New Timer With {.Interval = 40}
+    Public Sub New()
+        SetStyle(ControlStyles.UserPaint Or ControlStyles.AllPaintingInWmPaint Or ControlStyles.OptimizedDoubleBuffer Or ControlStyles.ResizeRedraw, True)
+        BackColor = Color.FromArgb(2, 4, 8)
+        Size = New Size(176, 24)
+        AccessibleName = "Save and export progress"
+        AddHandler pulseTimer.Tick, Sub()
+                                        pulsePosition = (pulsePosition + 4) Mod Math.Max(1, Width)
+                                        Invalidate()
+                                    End Sub
+    End Sub
+    Public Property Value As Integer
+        Get
+            Return progressValue
+        End Get
+        Set(value As Integer)
+            If value < 0 OrElse value > 100 Then Throw New ArgumentOutOfRangeException(NameOf(value))
+            progressValue = value
+            AccessibleDescription = value.ToString() & "%"
+            UpdatePulse()
+            Invalidate()
+        End Set
+    End Property
+    Protected Overrides Sub OnVisibleChanged(e As EventArgs)
+        MyBase.OnVisibleChanged(e)
+        UpdatePulse()
+    End Sub
+    Private Sub UpdatePulse()
+        pulseTimer.Enabled = Visible AndAlso progressValue > 0 AndAlso progressValue < 100
+    End Sub
+    Protected Overrides Sub Dispose(disposing As Boolean)
+        If disposing Then pulseTimer.Dispose()
+        MyBase.Dispose(disposing)
+    End Sub
+    Private Shared Function Rounded(bounds As Rectangle, radius As Integer) As GraphicsPath
+        Dim path As New GraphicsPath()
+        Dim diameter As Integer = radius * 2
+        path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90)
+        path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90)
+        path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90)
+        path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90)
+        path.CloseFigure()
+        Return path
+    End Function
+    Protected Overrides Sub OnPaint(e As PaintEventArgs)
+        MyBase.OnPaint(e)
+        If Width < 16 OrElse Height < 16 Then Return
+        Dim g As Graphics = e.Graphics
+        g.SmoothingMode = SmoothingMode.AntiAlias
+        g.Clear(BackColor)
+        Dim frame As New Rectangle(3, 3, Width - 7, Height - 7)
+        Using outline As GraphicsPath = Rounded(frame, 7)
+            Using glow As New Pen(Color.FromArgb(65, 160, 45, 255), 5)
+                g.DrawPath(glow, outline)
+            End Using
+            Using dark As New LinearGradientBrush(frame, Color.FromArgb(24, 27, 43), Color.FromArgb(4, 8, 15), LinearGradientMode.Vertical)
+                g.FillPath(dark, outline)
+            End Using
+            Dim track As New Rectangle(frame.X + 2, frame.Y + 2, frame.Width - 4, frame.Height - 4)
+            Dim filled As Integer = CInt(track.Width * progressValue / 100.0R)
+            If filled > 0 Then
+                Dim saved As Drawing2D.GraphicsState = g.Save()
+                Using clip As GraphicsPath = Rounded(track, 5)
+                    g.SetClip(clip)
+                    Dim fillArea As New Rectangle(track.X, track.Y, filled, track.Height)
+                    Using fill As New LinearGradientBrush(track, Color.FromArgb(45, 235, 255), Color.FromArgb(0, 120, 220), LinearGradientMode.Vertical)
+                        g.FillRectangle(fill, fillArea)
+                    End Using
+                    g.SetClip(fillArea, CombineMode.Intersect)
+                    Using pulse As New LinearGradientBrush(New Rectangle(track.X + pulsePosition - 12, track.Y, 24, track.Height), Color.Transparent, Color.FromArgb(160, Color.White), LinearGradientMode.Horizontal)
+                        g.FillRectangle(pulse, track.X + pulsePosition - 12, track.Y, 24, track.Height)
+                    End Using
+                    Using edge As New Pen(Color.FromArgb(180, 200, 255, 255), 2)
+                        g.DrawLine(edge, track.X + filled - 1, track.Top, track.X + filled - 1, track.Bottom)
+                    End Using
+                End Using
+                g.Restore(saved)
+            End If
+            Using border As New Pen(Color.FromArgb(200, 85, 255), 1)
+                g.DrawPath(border, outline)
+            End Using
+        End Using
+        Using labelFont As New Font("Segoe UI", 8.0F, FontStyle.Bold)
+            Dim label As String = progressValue.ToString() & "%"
+            Dim flags As TextFormatFlags = TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter Or TextFormatFlags.NoPadding
+            TextRenderer.DrawText(g, label, labelFont, New Rectangle(1, 1, Width, Height), Color.Black, flags)
+            TextRenderer.DrawText(g, label, labelFont, ClientRectangle, Color.White, flags)
+        End Using
+    End Sub
+End Class
