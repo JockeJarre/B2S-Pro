@@ -2,6 +2,12 @@
 
 All notable B2S Pro changes are documented here. Release packages and checksums are published with each corresponding GitHub release.
 
+## 1.0.7 / Server 3.0.6 — 2026-10-11
+
+- Add an Import DMD Image toolbar shortcut and default GIF/PNG sequence imports to the active canvas.
+- Render DMD ball, motion-path, pivot, masked and behind-canvas artwork using the existing animation model, preserving ordinary legacy DMD drawing.
+- Update both runtime packages and setup programs; preserve the B2S.Server COM identity and VPX connection.
+
 ## 1.0.6 / Server 3.0.5 — 2026-10-10
 
 - Apply Text Settings changes to every selected text box and illuminate the whole selected group in the live preview, preserving each box's lettering and routing.

@@ -191,6 +191,7 @@ Public Module B2SProMainToolbar
         If key.Contains("redo") Then Return "REDO"
         If key.Contains("zoomout") Then Return "ZOOM" & vbLf & "OUT"
         If key.Contains("zoomin") Then Return "ZOOM" & vbLf & "IN"
+        If key.Contains("importdmd") Then Return "IMPORT" & vbLf & "DMD" & vbLf & "IMAGE"
         If key.Contains("importbackground") Then Return "IMPORT" & vbLf & "BACKGLASS" & vbLf & "IMAGE"
         If key.Contains("addspeakergrill") Then Return "ADD" & vbLf & "SPEAKER" & vbLf & "GRILL"
         If key.Contains("backglassbrightness") Then Return "BACKGLASS" & vbLf & "BRIGHTNESS"
@@ -299,7 +300,7 @@ Public Module B2SProMainToolbar
                         g.DrawLine(glow, innerX, innerY, outerX, outerY)
                         g.DrawLine(line, innerX, innerY, outerX, outerY)
                     Next
-                ElseIf key.Contains("importbackground") Then
+                ElseIf key.Contains("importbackground") OrElse key.Contains("importdmd") Then
                     g.DrawRectangle(glow, 4, 5, 24, 22) : g.DrawRectangle(line, 4, 5, 24, 22)
                     Using sun As New SolidBrush(Color.FromArgb(255, 218, 75)) : g.FillEllipse(sun, 20, 8, 4, 4) : End Using
                     Using brush As New SolidBrush(Color.FromArgb(220, 80, 205, 255))
@@ -429,7 +430,7 @@ Public Module B2SProMainToolbar
 
     Private Function ToolbarAccent(item As ToolStripItem) As Color
         Dim key As String = If(item.Name, String.Empty).ToLowerInvariant()
-        If key.Contains("zoom") OrElse key.Contains("importbackground") Then Return Color.FromArgb(21, 197, 255)
+        If key.Contains("zoom") OrElse key.Contains("importbackground") OrElse key.Contains("importdmd") Then Return Color.FromArgb(21, 197, 255)
         If key.Contains("backglassbrightness") Then Return Color.FromArgb(255, 218, 75)
         If key.Contains("autosave") Then
             Dim toggle As ToolStripButton = TryCast(item, ToolStripButton)

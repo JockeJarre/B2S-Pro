@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.IO
 Imports System.Runtime.InteropServices
 
@@ -278,6 +278,16 @@ Public Class formDesigner
             Sub() tsbBackglassBrightnessEnhanced.Enabled = tsmiBrightness.Enabled
         Dim brightnessInsertIndex As Integer = tsB2SDesigner.Items.IndexOf(tsbImportBackgroundImage) + 1
         tsB2SDesigner.Items.Insert(brightnessInsertIndex, tsbBackglassBrightnessEnhanced)
+        Dim importDMDButton As New ToolStripButton With {
+            .Name = "tsbImportDMDImage",
+            .Text = "Import DMD Image",
+            .ToolTipText = "Import DMD image",
+            .Enabled = tsmiImportDMDImage.Enabled
+        }
+        AddHandler importDMDButton.Click, AddressOf ImportDMDImage_Click
+        AddHandler tsmiImportDMDImage.EnabledChanged,
+            Sub() importDMDButton.Enabled = tsmiImportDMDImage.Enabled
+        tsB2SDesigner.Items.Insert(tsB2SDesigner.Items.IndexOf(tsbImportBackgroundImage) + 1, importDMDButton)
         tsmiBrightness.Available = False
         tsmiReelsLEDs.Available = False
         tsmiIllumination.Available = False

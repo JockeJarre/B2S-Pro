@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Drawing.Imaging
 Imports System.IO
 Imports System.Text.RegularExpressions
@@ -100,7 +100,7 @@ Public Class formPictureSequenceImport
         cmbDestination.Dock = DockStyle.Fill
         cmbDestination.DropDownStyle = ComboBoxStyle.DropDownList
         cmbDestination.Items.AddRange(New Object() {"Backglass", "DMD screen"})
-        cmbDestination.SelectedIndex = 0
+        cmbDestination.SelectedIndex = If(Backglass.currentData IsNot Nothing AndAlso Backglass.currentData.IsDMDImageShown, 1, 0)
         details.Controls.Add(cmbDestination, 3, 0)
         layout.Controls.Add(details, 0, 2)
 
