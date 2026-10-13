@@ -23,6 +23,7 @@ $updateCheckerSource = Join-Path $installerRoot 'B2SUpdateChecker.cs'
 $updateCheckerManifest = Join-Path $installerRoot 'B2SUpdateChecker.manifest'
 $icon = Join-Path $repositoryRoot 'src\designer\b2sbackglassdesigner\B2SPro.ico'
 $logo = Join-Path $repositoryRoot 'src\designer\b2sbackglassdesigner\Resources\B2SProHeader.png'
+$brandLogo = Join-Path $repositoryRoot 'src\designer\b2sbackglassdesigner\Resources\B2SProLogo.png'
 $proOutput = Join-Path $OutputRoot 'B2SProSetup.exe'
 $serverOutput = Join-Path $OutputRoot 'B2SServerSetup.exe'
 $updateCheckerOutput = Join-Path $OutputRoot 'B2SUpdateChecker.exe'
@@ -43,6 +44,7 @@ $commonCompilerArguments = @(
     "/win32manifest:$manifest"
     "/win32icon:$icon"
     "/resource:$logo,B2SProHeader.png"
+    "/resource:$brandLogo,B2SProLogo.png"
     '/reference:System.dll'
     '/reference:System.Core.dll'
     '/reference:System.Drawing.dll'
@@ -118,6 +120,7 @@ $testArguments = @(
     '/nowin32manifest'
     "/win32icon:$icon"
     "/resource:$logo,B2SProHeader.png"
+    "/resource:$brandLogo,B2SProLogo.png"
     '/reference:System.dll'
     '/reference:System.Core.dll'
     '/reference:System.Drawing.dll'

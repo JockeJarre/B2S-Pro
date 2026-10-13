@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.IO.Compression;
 using Microsoft.Win32;
@@ -65,6 +66,7 @@ namespace B2SPro.Setup
         public const string Product = "B2S Pro";
         public const string ButtonText = "Install / Update B2S Pro";
 #endif
+        public static string DisplayVersion { get { var attributes = Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false); return attributes.Length > 0 ? ((AssemblyInformationalVersionAttribute)attributes[0]).InformationalVersion : Assembly.GetExecutingAssembly().GetName().Version.ToString(); } }
     }
 
     internal sealed class InstallerLaunchOptions
@@ -128,11 +130,11 @@ namespace B2SPro.Setup
         private readonly ComboBox _architecture = new ComboBox();
         private readonly RadioButton _localSource = new RadioButton();
         private readonly RadioButton _githubSource = new RadioButton();
-        private readonly Button _installButton = new Button();
-        private readonly ProgressBar _progress = new ProgressBar();
+        private readonly Button _installButton = new NeonButton { Primary = true };
+        private readonly NeonProgress _progress = new NeonProgress();
         private readonly Label _status = new Label();
         private readonly Label _intro = new Label();
-        private readonly Panel _contentHost = new Panel();
+        private readonly Panel _contentHost = new NeonBackdrop();
         private readonly TableLayoutPanel _root = new TableLayoutPanel();
         private readonly PackagePaths _localPackages;
         private bool _fittingLayout;
@@ -150,8 +152,14 @@ namespace B2SPro.Setup
             Font = new Font("Segoe UI", 9F);
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = SetupEdition.ServerOnly ? new Size(704, 422) : new Size(704, 532);
+            ClientSize = SetupEdition.ServerOnly ? new Size(620, 450) : new Size(620, 560);
             BuildInterface();
+            FormBorderStyle = FormBorderStyle.None;
+            Padding = new Padding(4);
+            var chrome = new NeonChrome(this) { Dock = DockStyle.Top, Height = 30 };
+            Controls.Add(chrome);
+            SizeChanged += delegate { NeonDrawing.ShapeWindow(this); };
+            NeonDrawing.ShapeWindow(this);
             LoadSavedPaths();
             ApplyLaunchOptions(launchOptions);
             _vpxFolder.Leave += delegate { if (Directory.Exists(_vpxFolder.Text.Trim())) SetSuggestedFolders(_vpxFolder.Text.Trim()); };
@@ -190,7 +198,7 @@ namespace B2SPro.Setup
                 int outerMargin = ScaleLogicalPixels(24);
                 int availableWidth = Math.Max(1, workingArea.Width - chromeWidth - outerMargin);
                 int availableHeight = Math.Max(1, workingArea.Height - chromeHeight - outerMargin);
-                int targetWidth = Math.Min(ScaleLogicalPixels(704), availableWidth);
+                int targetWidth = Math.Min(ScaleLogicalPixels(620), availableWidth);
 
                 ClientSize = new Size(targetWidth, Math.Min(ClientSize.Height, availableHeight));
                 int textWidth = Math.Max(ScaleLogicalPixels(280), targetWidth - _root.Padding.Horizontal - ScaleLogicalPixels(8));
@@ -200,7 +208,9 @@ namespace B2SPro.Setup
                 _contentHost.PerformLayout();
 
                 int preferredHeight = Math.Max(_root.PreferredSize.Height, _root.Height);
-                int targetHeight = Math.Min(preferredHeight, availableHeight);
+                int captionHeight = 0;
+                foreach (Control control in Controls) if (control is NeonChrome) captionHeight += control.Height;
+                int targetHeight = Math.Min(preferredHeight + captionHeight + Padding.Vertical, availableHeight);
                 ClientSize = new Size(targetWidth, targetHeight);
                 _contentHost.AutoScrollMinSize = new Size(0, preferredHeight);
 
@@ -268,7 +278,8 @@ namespace B2SPro.Setup
             _root.Dock = DockStyle.Top;
             _root.AutoSize = true;
             _root.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            _root.Padding = new Padding(16, 12, 16, 12);
+            _root.Padding = new Padding(14, 8, 14, 8);
+            _root.BackColor = Color.Transparent;
             _root.ColumnCount = 1;
             _root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             _root.RowCount = SetupEdition.ServerOnly ? 7 : 9;
@@ -291,12 +302,12 @@ namespace B2SPro.Setup
             if (!SetupEdition.ServerOnly) _root.Controls.Add(CreateArchitectureRow(), 0, nextRow++);
             _root.Controls.Add(CreateSourcePanel(), 0, nextRow++);
 
-            var statusPanel = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1, RowCount = 2 };
+            var statusPanel = new TableLayoutPanel { BackColor = Color.Transparent, Padding = new Padding(5), Margin = new Padding(0, 2, 0, 10), Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1, RowCount = 2 };
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            statusPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
+            statusPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
             statusPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             _progress.Dock = DockStyle.Fill;
-            _progress.MinimumSize = new Size(0, 8);
+            _progress.MinimumSize = new Size(0, 24);
             _progress.Style = ProgressBarStyle.Continuous;
             _status.AutoSize = true;
             _status.Dock = DockStyle.Top;
@@ -307,11 +318,13 @@ namespace B2SPro.Setup
             statusPanel.Controls.Add(_status, 0, 1);
             _root.Controls.Add(statusPanel, 0, nextRow++);
 
-            var buttons = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Padding = new Padding(0, 2, 0, 0) };
+            var buttons = new FlowLayoutPanel { BackColor = Color.Transparent, Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Padding = new Padding(0, 2, 0, 0) };
             var close = StyledButton("Close", 104);
             close.Click += delegate { Close(); };
             _installButton.Text = SetupEdition.ButtonText;
-            StyleButton(_installButton, SetupEdition.ServerOnly ? 184 : 178);
+            StyleButton(_installButton, SetupEdition.ServerOnly ? 220 : 250);
+            _installButton.MinimumSize = new Size(SetupEdition.ServerOnly ? 220 : 250, 38);
+            _installButton.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             _installButton.BackColor = Color.FromArgb(25, 112, 68);
             _installButton.Click += InstallClicked;
             buttons.Controls.Add(close);
@@ -321,32 +334,29 @@ namespace B2SPro.Setup
 
         private Control CreateHeader()
         {
-            var panel = new Panel { Dock = DockStyle.Top, BackColor = Color.Black, MinimumSize = new Size(0, SetupEdition.ServerOnly ? 78 : 82) };
-            try
+            var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 100, BackColor = Color.Transparent, ColumnCount = 3, Margin = new Padding(0, 0, 0, 5), Padding = Padding.Empty };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            header.RowCount = 1;
+            header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            var logo = new PictureBox { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Transparent, Margin = Padding.Empty };
+            using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("B2SProLogo.png"))
             {
-                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("B2SProHeader.png"))
-                {
-                    if (stream != null)
-                    {
-                        var picture = new PictureBox();
-                        using (Image source = Image.FromStream(stream)) picture.Image = new Bitmap(source);
-                        picture.SizeMode = PictureBoxSizeMode.Zoom;
-                        picture.Dock = DockStyle.Fill;
-                        panel.Controls.Add(picture);
-                    }
-                }
+                if (stream == null) throw new InvalidOperationException("The embedded B2S Pro logo is missing.");
+                using (Image artwork = Image.FromStream(stream)) logo.Image = new Bitmap(artwork);
             }
-            catch { }
-            return panel;
+            logo.Disposed += delegate { if (logo.Image != null) logo.Image.Dispose(); };
+            header.Controls.Add(logo, 1, 0);
+            return header;
         }
-
         private Control CreateIntro()
         {
             _intro.AutoSize = true;
             _intro.Dock = DockStyle.Top;
             _intro.Text = SetupEdition.ServerOnly
-                ? "Installs or updates only the B2S Server used by Visual Pinball. B2S Pro and the original Backglass Designer are not installed or changed."
-                : "B2S Pro installs beside the original Backglass Designer and includes the required B2S Server update. Nothing is written until all locations are validated and every existing program-file replacement is approved.";
+                ? "VPX Server only • your Designer and backglasses stay untouched"
+                : "Designer + Server • verified packages • automatic backups";
             _intro.Font = new Font(Font, FontStyle.Bold);
             _intro.ForeColor = Color.FromArgb(230, 235, 245);
             _intro.Padding = new Padding(2, 8, 2, 2);
@@ -355,63 +365,53 @@ namespace B2SPro.Setup
 
         private Control CreatePathRow(string title, TextBox textBox, EventHandler browse, string buttonText)
         {
-            var panel = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, RowCount = 2 };
+            var card = new NeonCard();
+            var panel = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 3, RowCount = 3, BackColor = Color.Transparent };
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30));
             panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-
-            var label = new Label { Text = title, AutoSize = true, Dock = DockStyle.Top, ForeColor = Color.FromArgb(80, 210, 255), Font = new Font(Font, FontStyle.Bold) };
-            textBox.Dock = DockStyle.Fill;
-            textBox.Margin = new Padding(3, 3, 3, 4);
-            textBox.BackColor = Color.FromArgb(27, 33, 45);
-            textBox.ForeColor = Color.White;
-            textBox.BorderStyle = BorderStyle.FixedSingle;
-            var button = StyledButton(buttonText, 90);
-            button.Click += browse;
-
-            panel.Controls.Add(label, 0, 0);
-            panel.SetColumnSpan(label, 2);
-            panel.Controls.Add(textBox, 0, 1);
-            panel.Controls.Add(button, 1, 1);
-            return panel;
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 94));
+            var icon = new NeonGlyph { Kind = "folder", Dock = DockStyle.Fill, Margin = new Padding(0, 6, 12, 0) };
+            panel.Controls.Add(icon, 0, 0); panel.SetRowSpan(icon, 3);
+            bool server = Object.ReferenceEquals(textBox, _serverFolder);
+            string heading = server ? "B2S Server folder" : Object.ReferenceEquals(textBox, _vpxFolder) ? "Visual Pinball folder" : "B2S Pro Designer folder";
+            var label = new Label { Text = heading, AutoSize = true, ForeColor = Color.FromArgb(231, 242, 255), Font = new Font("Segoe UI", 10F, FontStyle.Bold), Margin = new Padding(0, 0, 0, 4) };
+            var description = new Label { Text = server ? "Automatically detected • editable location" : Object.ReferenceEquals(textBox, _vpxFolder) ? "Select your Visual Pinball installation folder" : "Select the folder for B2S Pro Designer", AutoSize = true, ForeColor = Color.FromArgb(149, 176, 204), Margin = new Padding(0, 0, 0, 9) };
+            panel.Controls.Add(label, 1, 0); panel.SetColumnSpan(label, 2);
+            description.Visible = false; panel.Controls.Add(description, 1, 1); panel.SetColumnSpan(description, 2);
+            textBox.Dock = DockStyle.Fill; textBox.Margin = new Padding(0, 4, 10, 4);
+            textBox.BackColor = Color.FromArgb(24, 38, 56); textBox.ForeColor = Color.White;
+            textBox.Font = new Font("Segoe UI", 10F); textBox.BorderStyle = BorderStyle.FixedSingle;
+            var button = StyledButton(buttonText, 86); button.Dock = DockStyle.Fill; button.Margin = Padding.Empty; button.Click += browse;
+            var inputFrame = new AngledInput { Dock = DockStyle.Fill, Height = 31, Margin = new Padding(0, 0, 8, 0) }; textBox.BorderStyle = BorderStyle.None; textBox.Margin = Padding.Empty; textBox.BackColor = Color.FromArgb(20, 35, 51); inputFrame.Controls.Add(textBox); panel.Controls.Add(inputFrame, 1, 2); panel.Controls.Add(button, 2, 2);
+            card.Controls.Add(panel); return card;
         }
 
         private Control CreateArchitectureRow()
         {
-            var panel = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 3, 0, 0), WrapContents = true };
-            panel.Controls.Add(new Label { Text = "Designer edition:", AutoSize = true, MinimumSize = new Size(114, 27), TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.FromArgb(80, 210, 255), Font = new Font(Font, FontStyle.Bold) });
-            _architecture.DropDownStyle = ComboBoxStyle.DropDownList;
-            _architecture.Items.AddRange(new object[] { "64-bit (recommended)", "32-bit" });
+            var card = new NeonCard();
+            var panel = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 3, BackColor = Color.Transparent };
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30)); panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45)); panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
+            panel.Controls.Add(new NeonGlyph { Kind = "chip", Dock = DockStyle.Fill, MinimumSize = new Size(32, 32) }, 0, 0);
+            panel.Controls.Add(new Label { Text = "Designer edition", AutoSize = true, ForeColor = Color.White, Font = new Font("Segoe UI", 10F, FontStyle.Bold), Margin = new Padding(0, 5, 0, 0) }, 1, 0);
+            _architecture.DropDownStyle = ComboBoxStyle.DropDownList; _architecture.Items.AddRange(new object[] { "64-bit (recommended)", "32-bit" });
             _architecture.SelectedIndex = Environment.Is64BitOperatingSystem ? 0 : 1;
-            _architecture.MinimumSize = new Size(194, 0);
-            panel.Controls.Add(_architecture);
-            panel.Controls.Add(new Label { Text = "Server supports both x86 and x64.", AutoSize = true, MinimumSize = new Size(250, 27), TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.Silver });
-            return panel;
+            _architecture.Dock = DockStyle.Fill; _architecture.BackColor = Color.FromArgb(24, 38, 56); _architecture.ForeColor = Color.White; _architecture.Font = new Font("Segoe UI", 10F); _architecture.FlatStyle = FlatStyle.Flat;
+            _architecture.DrawMode = DrawMode.OwnerDrawFixed;
+            _architecture.DrawItem += delegate(object sender, DrawItemEventArgs e) { if (e.Index < 0) return; using (var brush = new SolidBrush(Color.FromArgb(24, 38, 56))) e.Graphics.FillRectangle(brush, e.Bounds); TextRenderer.DrawText(e.Graphics, _architecture.Items[e.Index].ToString(), _architecture.Font, e.Bounds, Color.White, TextFormatFlags.Left | TextFormatFlags.VerticalCenter); if ((e.State & DrawItemState.Focus) != 0) e.DrawFocusRectangle(); };
+            panel.Controls.Add(_architecture, 2, 0); card.Controls.Add(panel); return card;
         }
 
         private Control CreateSourcePanel()
         {
-            var group = new GroupBox { Text = "Build source", Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ForeColor = Color.White, Padding = new Padding(10, 7, 10, 5) };
-            var flow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(4, 1, 0, 0) };
-            _localSource.Text = SetupEdition.ServerOnly ? "Install from the verified Server package beside this updater" : "Install from the verified Designer and Server packages beside this updater";
-            _localSource.AutoSize = true;
-            _localSource.Margin = new Padding(3, 0, 3, 0);
-            _localSource.ForeColor = Color.White;
-            _localSource.BackColor = Color.Transparent;
-            _localSource.UseVisualStyleBackColor = false;
+            var card = new NeonCard();
+            var flow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, BackColor = Color.Transparent };
+            flow.Controls.Add(new Label { Text = "Install source", AutoSize = true, ForeColor = Color.White, Font = new Font("Segoe UI", 10F, FontStyle.Bold), Margin = new Padding(0, 0, 0, 8) });
+            _localSource.Text = "Use local packages"; _localSource.AutoSize = true; _localSource.ForeColor = Color.White; _localSource.BackColor = Color.Transparent; _localSource.UseVisualStyleBackColor = false;
             _localSource.Enabled = _localPackages.AreAvailable(SetupEdition.ServerOnly);
-            _githubSource.Text = "Download the latest verified " + SetupEdition.Product + " release from GitHub";
-            _githubSource.AutoSize = true;
-            _githubSource.Margin = new Padding(3, 0, 3, 0);
-            _githubSource.ForeColor = Color.White;
-            _githubSource.BackColor = Color.Transparent;
-            _githubSource.UseVisualStyleBackColor = false;
-            _githubSource.Checked = true;
-            flow.Controls.Add(_localSource);
-            flow.Controls.Add(_githubSource);
-            group.Controls.Add(flow);
-            return group;
+            _githubSource.Text = "Download from GitHub"; _githubSource.AutoSize = true; _githubSource.ForeColor = Color.White; _githubSource.BackColor = Color.Transparent; _githubSource.UseVisualStyleBackColor = false; _githubSource.Checked = true;
+            _githubSource.Margin = new Padding(12, 1, 14, 4); _localSource.Margin = new Padding(0, 1, 0, 4);
+            flow.Controls.Add(_githubSource); flow.Controls.Add(_localSource);
+            card.Controls.Add(flow); return card;
         }
 
         private void BrowseVpx(object sender, EventArgs e)
@@ -461,7 +461,7 @@ namespace B2SPro.Setup
             string validation = ValidateInputs();
             if (validation != null)
             {
-                MessageBox.Show(this, validation, SetupEdition.Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                NeonMessage.Show(this, validation, SetupEdition.Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -506,14 +506,14 @@ namespace B2SPro.Setup
                     {
                         message += Environment.NewLine + "Installation paths could not be remembered: " + ex.Message;
                     }
-                    MessageBox.Show(this, message, SetupEdition.Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    NeonMessage.Show(this, message, SetupEdition.Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
                     Close();
                 }
             }
             catch (Exception ex)
             {
                 SetBusy(false, "Installation stopped. No unprotected settings were intentionally replaced.");
-                MessageBox.Show(this, ex.Message, SetupEdition.Title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                NeonMessage.Show(this, ex.Message, SetupEdition.Title, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
@@ -572,7 +572,7 @@ namespace B2SPro.Setup
                 : "The B2S Server update is included. Do you want to back up and overwrite these program files?");
             message.AppendLine();
             message.AppendLine("ScreenRes.txt, B2STableSettings.xml, plug-ins, projects, tables, and backglasses will not be overwritten.");
-            return MessageBox.Show(this, message.ToString(), "Existing installation found", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+            return NeonMessage.Show(this, message.ToString(), "Existing installation found", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
         }
 
         private static PackagePaths FindLocalPackages()
@@ -639,7 +639,7 @@ namespace B2SPro.Setup
 
         private static Button StyledButton(string text, int width)
         {
-            var button = new Button { Text = text };
+            var button = new NeonButton { Text = text };
             StyleButton(button, width);
             return button;
         }
@@ -648,12 +648,185 @@ namespace B2SPro.Setup
         {
             button.AutoSize = true;
             button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            button.MinimumSize = new Size(width, 30);
+            button.MinimumSize = new Size(width, 31);
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderColor = Color.FromArgb(55, 145, 255);
             button.BackColor = Color.FromArgb(28, 48, 82);
             button.ForeColor = Color.White;
         }
+    }
+
+    internal static class NeonDrawing
+    {
+        public static GraphicsPath Cut(RectangleF r, float cut)
+        {
+            var path = new GraphicsPath(); cut = Math.Min(cut, r.Height / 2);
+            path.AddPolygon(new PointF[] { new PointF(r.X + cut,r.Y),new PointF(r.Right-cut,r.Y),new PointF(r.Right,r.Y+cut),new PointF(r.Right,r.Bottom-cut),new PointF(r.Right-cut,r.Bottom),new PointF(r.X+cut,r.Bottom),new PointF(r.X,r.Bottom-cut),new PointF(r.X,r.Y+cut) }); return path;
+        }
+        public static void ShapeWindow(Form form)
+        {
+            if (form.Width < 60 || form.Height < 60) return;
+            using(var path=new GraphicsPath()) { path.AddPolygon(new PointF[]{new PointF(12,0),new PointF(form.Width-12,0),new PointF(form.Width,12),new PointF(form.Width,form.Height-40),new PointF(form.Width-40,form.Height),new PointF(40,form.Height),new PointF(0,form.Height-40),new PointF(0,12)}); var previous=form.Region; form.Region=new Region(path); if(previous!=null)previous.Dispose(); }
+        }
+        public static GraphicsPath Round(RectangleF r, float radius)
+        {
+            var path = new GraphicsPath(); float d = Math.Min(radius * 2, Math.Min(r.Width, r.Height));
+            path.AddArc(r.Left, r.Top, d, d, 180, 90); path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90); path.CloseFigure(); return path;
+        }
+    }
+    internal sealed class NeonBackdrop : Panel
+    {
+        public NeonBackdrop() { DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw, true); }
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Color.FromArgb(6, 14, 25));
+            using (var pen = new Pen(Color.FromArgb(10, 24, 37)))
+            { for (int y = 30; y < Height; y += 28) { e.Graphics.DrawLine(pen, 0, y, 12, y); e.Graphics.DrawLine(pen, Width - 12, y, Width, y); } }
+            using (var pen = new Pen(Color.FromArgb(36, 132, 169), 1)) e.Graphics.DrawLines(pen,new Point[]{new Point(3,3),new Point(3,Height-40),new Point(40,Height-4),new Point(Width-40,Height-4),new Point(Width-4,Height-40),new Point(Width-4,3)});
+        }
+    }
+    internal sealed class NeonCard : Panel
+    {
+        public NeonCard() { DoubleBuffered = true; AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink; Dock = DockStyle.Top; Padding = new Padding(10, 5, 10, 5); Margin = new Padding(0, 0, 0, 5); BackColor = Color.FromArgb(12, 24, 38); SetStyle(ControlStyles.ResizeRedraw, true); }
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Color.FromArgb(6, 14, 25));
+            using (var pen = new Pen(Color.FromArgb(25, 64, 85))) e.Graphics.DrawLine(pen, 12, Height - 1, Math.Max(12, Width - 12), Height - 1);
+        }
+    }
+    internal sealed class AngledInput : Panel
+    {
+        public AngledInput() { DoubleBuffered=true; Padding=new Padding(9,5,9,5); BackColor=Color.FromArgb(20,35,51); MinimumSize=new Size(0,31); }
+        protected override void OnSizeChanged(EventArgs e) { base.OnSizeChanged(e); if(Width>20&&Height>10) using(var path=NeonDrawing.Cut(new RectangleF(0,0,Width,Height),8)) { var old=Region;Region=new Region(path);if(old!=null)old.Dispose(); } }
+        protected override void OnPaint(PaintEventArgs e) { base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using(var path=NeonDrawing.Cut(new RectangleF(1,1,Width-3,Height-3),8))using(var pen=new Pen(Color.FromArgb(40,133,169)))e.Graphics.DrawPath(pen,path); }
+    }
+    internal sealed class SetupWordmark : Control
+    {
+        public SetupWordmark(){DoubleBuffered=true;BackColor=Color.FromArgb(6,14,25);}
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+            using(var family=new FontFamily("Segoe UI"))using(var letters=new GraphicsPath())
+            { letters.AddString("B2S",family,(int)(FontStyle.Bold|FontStyle.Italic),43,new PointF(0,-7),StringFormat.GenericDefault);
+              using(var shine=new LinearGradientBrush(new Rectangle(0,0,130,46),Color.White,Color.FromArgb(82,112,138),90F))using(var outline=new Pen(Color.FromArgb(150,205,235),.8F)){e.Graphics.FillPath(shine,letters);e.Graphics.DrawPath(outline,letters);} }
+            using(var font=new Font("Segoe UI",18,FontStyle.Bold|FontStyle.Italic))using(var brush=new LinearGradientBrush(new Rectangle(20,34,98,30),Color.FromArgb(255,181,45),Color.FromArgb(255,34,32),90F))e.Graphics.DrawString("PRO",font,brush,new PointF(43,32));
+            using(var pen=new Pen(Color.FromArgb(0,207,246),1.5F))e.Graphics.DrawLine(pen,6,62,123,62);
+            using(var ball=new LinearGradientBrush(new Rectangle(113,3,24,24),Color.White,Color.FromArgb(28,49,74),45F))e.Graphics.FillEllipse(ball,113,3,24,24);
+            using(var pen=new Pen(Color.FromArgb(149,196,231)))e.Graphics.DrawEllipse(pen,113,3,24,24);
+        }
+    }
+    internal sealed class NeonGlyph : Control
+    {
+        public string Kind = "folder";
+        public NeonGlyph() { SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true); BackColor = Color.Transparent; }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; float size = Math.Min(32, Math.Min(Width - 4, Height - 4)); if (size < 8) return;
+            float x = (Width - size) / 2, y = (Height - size) / 2;
+            using (var pen = new Pen(Color.FromArgb(0, 224, 247), 2))
+            { if (Kind == "folder") { e.Graphics.DrawLines(pen, new PointF[] { new PointF(x, y + 7), new PointF(x, y + 2), new PointF(x + size * .4F, y + 2), new PointF(x + size * .55F, y + 7), new PointF(x + size, y + 7), new PointF(x + size, y + size), new PointF(x, y + size), new PointF(x, y + 7) }); }
+              else { e.Graphics.DrawRectangle(pen, x + 5, y + 5, size - 10, size - 10); for (int i = 10; i < size - 5; i += 7) { e.Graphics.DrawLine(pen, x + i, y, x + i, y + 5); e.Graphics.DrawLine(pen, x + i, y + size - 5, x + i, y + size); e.Graphics.DrawLine(pen, x, y + i, x + 5, y + i); e.Graphics.DrawLine(pen, x + size - 5, y + i, x + size, y + i); } } }
+        }
+    }
+    internal sealed class NeonButton : Button
+    {
+        public bool Primary;
+        private bool hover;
+        public NeonButton() { DoubleBuffered = true; }
+        protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.Clear(Parent == null || Parent.BackColor.A < 255 ? Color.FromArgb(6, 14, 25) : Parent.BackColor);
+            if (Width < 5 || Height < 5) return;
+            Color top = Primary && Enabled ? Color.FromArgb(56, 232, 250) : Color.FromArgb(28, 49, 70);
+            Color bottom = Primary && Enabled ? Color.FromArgb(0, 166, 206) : Color.FromArgb(11, 23, 39);
+            using (var shape = NeonDrawing.Cut(new RectangleF(2, 2, Width - 5, Height - 5), 10))
+            using (var brush = new LinearGradientBrush(ClientRectangle, top, bottom, 90F))
+            using (var border = new Pen(!Enabled ? Color.FromArgb(55, 68, 80) : hover || Primary ? Color.FromArgb(100, 246, 255) : Color.FromArgb(0, 193, 226), hover ? 2 : 1))
+            { e.Graphics.FillPath(brush, shape); e.Graphics.DrawPath(border, shape); }
+            TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, !Enabled ? Color.Gray : Primary ? Color.FromArgb(2, 27, 40) : Color.FromArgb(210, 245, 255), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+            if (Focused) ControlPaint.DrawFocusRectangle(e.Graphics, Rectangle.Inflate(ClientRectangle, -6, -6));
+        }
+    }
+    internal sealed class NeonProgress : Control
+    {
+        private int value, phase;
+        private ProgressBarStyle style;
+        private readonly Timer pulse = new Timer { Interval = 40 };
+        public int Value { get { return value; } set { this.value = Math.Max(0, Math.Min(100, value)); Invalidate(); } }
+        public ProgressBarStyle Style { get { return style; } set { style = value; pulse.Enabled = value == ProgressBarStyle.Marquee; Invalidate(); } }
+        public NeonProgress() { DoubleBuffered = true; BackColor = Color.FromArgb(6, 14, 25); pulse.Tick += delegate { phase = (phase + 3) % 120; Invalidate(); }; }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            if (Width < 70 || Height < 12) return; e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var track = new RectangleF(5, 5, Width - 58, Height - 10);
+            using (var shape = NeonDrawing.Round(track, track.Height / 2))
+            { using (var glow = new Pen(Color.FromArgb(95, 169, 59, 246), 5)) e.Graphics.DrawPath(glow, shape); using (var back = new SolidBrush(Color.FromArgb(10, 28, 44))) e.Graphics.FillPath(back, shape);
+              if (value > 0 || style == ProgressBarStyle.Marquee) { var old = e.Graphics.Save(); e.Graphics.SetClip(shape); float width = style == ProgressBarStyle.Marquee ? track.Width * .23F : track.Width * value / 100F; float x = style == ProgressBarStyle.Marquee ? track.X + track.Width * phase / 100F - width : track.X; using (var fill = new LinearGradientBrush(ClientRectangle, Color.FromArgb(50, 235, 255), Color.FromArgb(0, 147, 185), 90F)) e.Graphics.FillRectangle(fill, x, track.Y, width, track.Height); e.Graphics.Restore(old); }
+              using (var border = new Pen(Color.FromArgb(0, 232, 252), 2)) e.Graphics.DrawPath(border, shape); }
+            TextRenderer.DrawText(e.Graphics, value + "%", Font, new Rectangle(Width - 47, 0, 47, Height), Color.FromArgb(185, 235, 255), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+        protected override void Dispose(bool disposing) { if (disposing) pulse.Dispose(); base.Dispose(disposing); }
+    }
+
+    internal sealed class NeonChrome : Panel
+    {
+        [DllImport("user32.dll")] private static extern bool ReleaseCapture();
+        [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr h, int m, IntPtr w, IntPtr l);
+        public NeonChrome(Form owner)
+        {
+            BackColor = Color.FromArgb(9, 22, 37); Padding = new Padding(12, 0, 2, 0);
+            var close = new NeonButton { Text = "×", Dock = DockStyle.Right, Width = 36, AutoSize = false, Font = new Font("Segoe UI", 13F) };
+            close.Click += delegate { owner.Close(); };
+            var title = new Label { Text = owner.Text, UseMnemonic = false, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.FromArgb(145, 189, 215) };
+            MouseEventHandler drag = delegate(object sender, MouseEventArgs e) { if (e.Button == MouseButtons.Left) { ReleaseCapture(); SendMessage(owner.Handle, 0xA1, new IntPtr(2), IntPtr.Zero); } };
+            title.MouseDown += drag; MouseDown += drag; Controls.Add(title); Controls.Add(close);
+            if (owner is InstallerForm)
+            {
+                var minimize = new NeonButton { Text = "—", Dock = DockStyle.Right, Width = 36, AutoSize = false };
+                minimize.Click += delegate { owner.WindowState = FormWindowState.Minimized; };
+                Controls.Add(minimize);
+                Controls.SetChildIndex(minimize, 1);
+            }
+        }
+    }
+    internal sealed class NeonMessage : Form
+    {
+        internal NeonMessage(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+        {
+            Text = caption; BackColor = Color.FromArgb(6, 14, 25); ForeColor = Color.White; Font = new Font("Segoe UI", 10F);
+            FormBorderStyle = FormBorderStyle.None; StartPosition = FormStartPosition.CenterParent; ShowInTaskbar = false; Padding = new Padding(4); AutoScaleDimensions = new SizeF(96, 96); AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(500, 340);
+            var chrome = new NeonChrome(this) { Dock = DockStyle.Top, Height = 32 };
+            var body = new NeonBackdrop { Dock = DockStyle.Fill, Padding = new Padding(24, 18, 24, 18) };
+            var buttonsPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 58, FlowDirection = FlowDirection.RightToLeft, BackColor = Color.Transparent, Padding = new Padding(0, 6, 0, 0) };
+            bool question = buttons == MessageBoxButtons.YesNo;
+            if (question)
+            {
+                var no = new NeonButton { Text = "No", Width = 112, Height = 42, DialogResult = DialogResult.No };
+                var yes = new NeonButton { Text = "Yes", Width = 112, Height = 42, DialogResult = DialogResult.Yes, Primary = true };
+                buttonsPanel.Controls.Add(no); buttonsPanel.Controls.Add(yes); AcceptButton = yes; CancelButton = no;
+                FormClosing += delegate { if (DialogResult == DialogResult.None || DialogResult == DialogResult.Cancel) DialogResult = DialogResult.No; };
+            }
+            else
+            {
+                var ok = new NeonButton { Text = "OK", Width = 112, Height = 42, DialogResult = DialogResult.OK, Primary = true };
+                buttonsPanel.Controls.Add(ok); AcceptButton = ok; CancelButton = ok;
+            }
+            string heading = icon == MessageBoxIcon.Information ? "Installation complete" : icon == MessageBoxIcon.Error ? "Installation could not finish" : question ? "Confirm replacement" : "Check installation settings";
+            var title = new Label { Text = heading, Dock = DockStyle.Top, Height = 48, Font = new Font("Segoe UI", 18F, FontStyle.Bold), ForeColor = icon == MessageBoxIcon.Error ? Color.FromArgb(255, 128, 145) : Color.FromArgb(30, 229, 249), BackColor = Color.Transparent, TextAlign = ContentAlignment.MiddleLeft };
+            var message = new TextBox { Text = text.Replace("\r\n", "\n").Replace("\n", Environment.NewLine), Dock = DockStyle.Fill, Multiline = true, WordWrap = true, ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Color.FromArgb(12, 24, 38), ForeColor = Color.FromArgb(220, 237, 250), Font = Font, TabStop = true, ScrollBars = ScrollBars.Vertical };
+            Shown += delegate { message.SelectionStart = 0; message.SelectionLength = 0; if (AcceptButton is Control) ((Control)AcceptButton).Focus(); };
+            var card = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14), BackColor = message.BackColor };
+            card.Controls.Add(message); body.Controls.Add(card); body.Controls.Add(title); body.Controls.Add(buttonsPanel); Controls.Add(body); Controls.Add(chrome);
+            SizeChanged += delegate { NeonDrawing.ShapeWindow(this); };
+            NeonDrawing.ShapeWindow(this);
+        }
+        public static DialogResult Show(IWin32Window owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+        { using (var dialog = new NeonMessage(text, caption, buttons, icon)) { Rectangle area = owner is Control ? Screen.FromControl((Control)owner).WorkingArea : Screen.PrimaryScreen.WorkingArea; dialog.ClientSize = new Size(Math.Min(500, Math.Max(320, area.Width - 32)), Math.Min(360, Math.Max(260, area.Height - 32))); return dialog.ShowDialog(owner); } }
     }
 
     internal sealed class PackagePaths
