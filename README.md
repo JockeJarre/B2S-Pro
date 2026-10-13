@@ -33,6 +33,7 @@ Designer and Server ZIPs, and their two SHA-256 checksum files.
 - Motion paths with editable entry and exit behavior
 - Trough animation with live ball-count updates, custom PNG artwork per ball, rolling, and feeder respawn
 - Physics boundaries, bumpers, switches, flippers, and launcher support
+- SW trigger choices that use the existing controller switch input for lighting, snippets, animations, motion paths, trough drains, pivots, and physics launchers on either canvas
 - Pixel-level lamp lighting that preserves dark-image contrast
 - Dedicated high-intensity flasher editor with live full-backglass preview, mask refinement, temperature, diffusion, and radial-spike controls
 - Embedded illustrated B2S Pro help while retaining the original help material

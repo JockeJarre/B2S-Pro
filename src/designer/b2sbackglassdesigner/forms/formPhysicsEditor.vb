@@ -97,8 +97,8 @@ Public Partial Class formPhysicsEditor
         launcherFollowPivotCheck.AutoSize = True
         launcherFollowPivotCheck.Margin = New Padding(8, 8, 5, 0)
         launcherTypeBox.DropDownStyle = ComboBoxStyle.DropDownList
-        launcherTypeBox.Items.AddRange(New Object() {"Solenoid", "B2S ID"})
-        launcherTypeBox.SelectedIndex = If(ball.SnippitInfo.PhysicsLauncherTriggerType = 3, 1, 0)
+        launcherTypeBox.Items.AddRange(New Object() {"Solenoid", "B2S ID", "SW"})
+        launcherTypeBox.SelectedIndex = If(ball.SnippitInfo.PhysicsLauncherTriggerType = 5, 2, If(ball.SnippitInfo.PhysicsLauncherTriggerType = 3, 1, 0))
         launcherTypeBox.Width = 82
         launcherTypeBox.Margin = New Padding(0, 3, 5, 0)
         ConfigureLauncherBox(launcherIDBox, 0D, 255D, ball.SnippitInfo.PhysicsLauncherTriggerID, 0)
@@ -480,7 +480,7 @@ Public Partial Class formPhysicsEditor
     End Property
     Public ReadOnly Property ResultLauncherTriggerType As Integer
         Get
-            Return If(launcherTypeBox.SelectedIndex = 1, 3, 1)
+            Return If(launcherTypeBox.SelectedIndex = 2, 5, If(launcherTypeBox.SelectedIndex = 1, 3, 1))
         End Get
     End Property
     Public ReadOnly Property ResultLauncherTriggerID As Integer

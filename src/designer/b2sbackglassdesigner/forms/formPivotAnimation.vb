@@ -35,9 +35,9 @@ Public Class formPivotAnimation
         SetupNumber(duration, 10D, 5000D, source.SnippitInfo.PivotDuration, 0)
         SetupNumber(randomStrength, 0D, 100D, source.SnippitInfo.PivotRandomStrength, 1)
         triggerType.DropDownStyle = ComboBoxStyle.DropDownList : triggerType.Dock = DockStyle.Fill
-        triggerType.Items.AddRange(New Object() {"Named commands (advanced)", "ROM solenoid", "ROM lamp", "B2S ID", "Automatic when backglass starts"})
+        triggerType.Items.AddRange(New Object() {"Named commands (advanced)", "ROM solenoid", "ROM lamp", "B2S ID", "Automatic when backglass starts", "SW"})
         Dim detectedNamedPair As Boolean = (Not source.SnippitInfo.PivotAnimationEnabled AndAlso source.Name.EndsWith("_down", StringComparison.OrdinalIgnoreCase))
-        triggerType.SelectedIndex = If(detectedNamedPair, 0, Math.Max(0, Math.Min(4, source.SnippitInfo.PivotTriggerType)))
+        triggerType.SelectedIndex = If(detectedNamedPair, 0, Math.Max(0, Math.Min(5, source.SnippitInfo.PivotTriggerType)))
         SetupNumber(triggerID, 0D, 255D, source.SnippitInfo.PivotTriggerID, 0)
         downTrigger.Text = If(detectedNamedPair, source.Name, source.SnippitInfo.PivotDownTrigger)
         upTrigger.Text = If(detectedNamedPair, source.Name.Substring(0, source.Name.Length - 5) & "_up", source.SnippitInfo.PivotUpTrigger)
@@ -203,7 +203,7 @@ Public Class formPivotAnimation
         If enabledBox.Checked AndAlso triggerType.SelectedIndex = 0 AndAlso (String.IsNullOrWhiteSpace(upTrigger.Text) OrElse String.IsNullOrWhiteSpace(downTrigger.Text)) Then
             MessageBox.Show(Me, "Enter both the Up and Down command names.", "Pivot Animation", MessageBoxButtons.OK, MessageBoxIcon.Information) : DialogResult = DialogResult.None : Return
         End If
-        If enabledBox.Checked AndAlso triggerType.SelectedIndex > 0 AndAlso triggerType.SelectedIndex < 4 AndAlso triggerID.Value <= 0 Then
+        If enabledBox.Checked AndAlso triggerType.SelectedIndex > 0 AndAlso triggerType.SelectedIndex <> 4 AndAlso triggerID.Value <= 0 Then
             MessageBox.Show(Me, "Choose the trigger ID.", "Pivot Animation", MessageBoxButtons.OK, MessageBoxIcon.Information) : DialogResult = DialogResult.None : Return
         End If
         If enabledBox.Checked AndAlso triggerType.SelectedIndex = 4 AndAlso Not automaticBox.Checked Then
@@ -247,7 +247,7 @@ Public Class formPivotAnimation
     Private Sub TriggerTypeChanged(ByVal sender As Object, ByVal e As EventArgs)
         Dim named As Boolean = (triggerType.SelectedIndex = 0)
         If triggerType.SelectedIndex = 4 Then automaticBox.Checked = True
-        triggerID.Enabled = triggerType.SelectedIndex > 0 AndAlso triggerType.SelectedIndex < 4
+        triggerID.Enabled = triggerType.SelectedIndex > 0 AndAlso triggerType.SelectedIndex <> 4
         downTrigger.Enabled = named : upTrigger.Enabled = named
     End Sub
 

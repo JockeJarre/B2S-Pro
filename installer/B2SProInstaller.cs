@@ -287,7 +287,7 @@ namespace B2SPro.Setup
                 _root.Controls.Add(CreatePathRow("2. B2S Pro Designer folder", _designerFolder, delegate { BrowseFolder(_designerFolder); }, "Browse..."), 0, nextRow++);
             }
             _root.Controls.Add(CreatePathRow(SetupEdition.ServerOnly ? "2. B2S Server folder — automatically detected" : "B2S Server folder — automatically detected", _serverFolder, delegate { BrowseFolder(_serverFolder); }, "Change..."), 0, nextRow++);
-            _serverFolder.ReadOnly = true;
+            _serverFolder.ReadOnly = false;
             if (!SetupEdition.ServerOnly) _root.Controls.Add(CreateArchitectureRow(), 0, nextRow++);
             _root.Controls.Add(CreateSourcePanel(), 0, nextRow++);
 

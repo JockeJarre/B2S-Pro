@@ -1318,10 +1318,13 @@ Public Class formToolLayers
                         member.SnippitInfo.MotionPathDuration = editor.ResultDuration
                         member.SnippitInfo.MotionPathLoop = editor.ResultLoop
                         member.SnippitInfo.MotionPathSolenoidID = editor.ResultSolenoidID
+                        member.SnippitInfo.MotionPathSwitchID = editor.ResultSwitchID
                         member.SnippitInfo.MotionPathLampID = editor.ResultLampID
                         member.SnippitInfo.MotionPathB2SID = editor.ResultB2SID
                         member.SnippitInfo.MotionPathStopB2SID = editor.ResultStopB2SID
+                        member.SnippitInfo.MotionPathStopSwitchID = editor.ResultStopSwitchID
                         member.SnippitInfo.MotionPathResumeB2SID = editor.ResultResumeB2SID
+                        member.SnippitInfo.MotionPathResumeSwitchID = editor.ResultResumeSwitchID
                         member.SnippitInfo.MotionPathQueueTriggers = editor.ResultQueueTriggers
                         member.SnippitInfo.MotionPathRollEnabled = editor.ResultRollEnabled
                         member.SnippitInfo.MotionPathRespawnEnabled = editor.ResultRespawnEnabled
@@ -1336,10 +1339,13 @@ Public Class formToolLayers
                 snippet.SnippitInfo.MotionPathDuration = editor.ResultDuration
                 snippet.SnippitInfo.MotionPathLoop = editor.ResultLoop
                 snippet.SnippitInfo.MotionPathSolenoidID = editor.ResultSolenoidID
+                snippet.SnippitInfo.MotionPathSwitchID = editor.ResultSwitchID
                 snippet.SnippitInfo.MotionPathLampID = editor.ResultLampID
                 snippet.SnippitInfo.MotionPathB2SID = editor.ResultB2SID
                 snippet.SnippitInfo.MotionPathStopB2SID = editor.ResultStopB2SID
+                snippet.SnippitInfo.MotionPathStopSwitchID = editor.ResultStopSwitchID
                 snippet.SnippitInfo.MotionPathResumeB2SID = editor.ResultResumeB2SID
+                snippet.SnippitInfo.MotionPathResumeSwitchID = editor.ResultResumeSwitchID
                 snippet.SnippitInfo.MotionPathQueueTriggers = editor.ResultQueueTriggers
                 snippet.SnippitInfo.MotionPathRollEnabled = editor.ResultRollEnabled
                 snippet.SnippitInfo.MotionPathSequenceGroup = editor.ResultSequenceGroup
@@ -1372,6 +1378,7 @@ Public Class formToolLayers
                         member.SnippitInfo.MotionPathExitPoints.AddRange(exitPath)
                         member.SnippitInfo.MotionPathExitDuration = editor.ResultDuration
                         member.SnippitInfo.MotionPathRemoveSolenoidID = editor.ResultSolenoidID
+                        member.SnippitInfo.MotionPathRemoveSwitchID = editor.ResultSwitchID
                         member.SnippitInfo.MotionPathRemoveLampID = editor.ResultLampID
                         member.SnippitInfo.MotionPathRemoveB2SID = editor.ResultB2SID
                         member.SnippitInfo.MotionPathRollEnabled = editor.ResultRollEnabled
@@ -1383,6 +1390,7 @@ Public Class formToolLayers
                 snippet.SnippitInfo.MotionPathExitPoints.AddRange(editor.ResultPoints)
                 snippet.SnippitInfo.MotionPathExitDuration = editor.ResultDuration
                 snippet.SnippitInfo.MotionPathRemoveSolenoidID = editor.ResultSolenoidID
+                snippet.SnippitInfo.MotionPathRemoveSwitchID = editor.ResultSwitchID
                 snippet.SnippitInfo.MotionPathRemoveLampID = editor.ResultLampID
                 snippet.SnippitInfo.MotionPathRemoveB2SID = editor.ResultB2SID
                 snippet.SnippitInfo.MotionPathRollEnabled = editor.ResultRollEnabled
@@ -1526,6 +1534,7 @@ Public Class formToolLayers
             If Not wizard.GravityDrop Then .MotionPathExitPoints.AddRange(exitPath)
             .MotionPathDuration = wizard.EntryTime : .MotionPathExitDuration = wizard.ExitTime
             .MotionPathSolenoidID = wizard.EntrySolenoidID : .MotionPathLampID = wizard.EntryLampID : .MotionPathB2SID = wizard.EntryB2SID
+            .MotionPathSwitchID = wizard.EntrySwitchID : .MotionPathStopSwitchID = wizard.StopSwitchID : .MotionPathResumeSwitchID = wizard.ResumeSwitchID : .MotionPathRemoveSwitchID = wizard.RemoveSwitchID
             .MotionPathStopB2SID = wizard.StopB2SID : .MotionPathResumeB2SID = wizard.ResumeB2SID
             .MotionPathRemoveSolenoidID = wizard.RemoveSolenoidID : .MotionPathRemoveLampID = wizard.RemoveLampID : .MotionPathRemoveB2SID = wizard.RemoveB2SID
             .MotionPathQueueTriggers = True : .MotionPathLoop = False

@@ -12,6 +12,8 @@ Public Class formSnippitSettings
     Private WithEvents radAutomaticRotationTriggered As RadioButton
     Private WithEvents numericAutomaticRotationTriggerID As NumericUpDown
     Private pnlAutomaticRotationTriggerType As Panel
+    Private WithEvents radAutomaticRotationSW As RadioButton
+    Private WithEvents radAutomaticRotationB2S As RadioButton
     Private WithEvents radAutomaticRotationLamp As RadioButton
     Private WithEvents radAutomaticRotationSolenoid As RadioButton
     Private WithEvents cmbAutomaticRotationDirection As ComboBox
@@ -149,9 +151,11 @@ Public Class formSnippitSettings
         radAutomaticRotationTriggered.Checked = Not radAutomaticRotationContinuous.Checked
         numericAutomaticRotationTriggerID.Value = Math.Max(numericAutomaticRotationTriggerID.Minimum, Math.Min(numericAutomaticRotationTriggerID.Maximum, Math.Max(1, automaticRotationTriggerID)))
         Dim displayedTriggerType As eRomIDType = automaticRotationTriggerType
-        If displayedTriggerType <> eRomIDType.Lamp AndAlso displayedTriggerType <> eRomIDType.Solenoid Then displayedTriggerType = eRomIDType.Lamp
+        If displayedTriggerType <> eRomIDType.Lamp AndAlso displayedTriggerType <> eRomIDType.Solenoid AndAlso displayedTriggerType <> eRomIDType.B2SCommand AndAlso displayedTriggerType <> eRomIDType.Switch Then displayedTriggerType = eRomIDType.Lamp
         radAutomaticRotationLamp.Checked = (displayedTriggerType = eRomIDType.Lamp)
         radAutomaticRotationSolenoid.Checked = (displayedTriggerType = eRomIDType.Solenoid)
+        radAutomaticRotationB2S.Checked = (displayedTriggerType = eRomIDType.B2SCommand)
+        radAutomaticRotationSW.Checked = (displayedTriggerType = eRomIDType.Switch)
         numericAutomaticRotationSteps.Value = Math.Max(numericAutomaticRotationSteps.Minimum, Math.Min(numericAutomaticRotationSteps.Maximum, automaticRotationSteps))
         numericAutomaticRotationInterval.Value = Math.Max(numericAutomaticRotationInterval.Minimum, Math.Min(numericAutomaticRotationInterval.Maximum, automaticRotationInterval))
         Dim displayedDirection As eSnippitRotationDirection = automaticRotationDirection
@@ -187,7 +191,7 @@ Public Class formSnippitSettings
             automaticRotationEnabled = (SelectedSnippetType() = eSnippitType.StandardImage AndAlso chkAutomaticRotation.Checked)
             automaticRotationContinuous = radAutomaticRotationContinuous.Checked
             automaticRotationTriggerID = If(radAutomaticRotationTriggered.Checked, CInt(numericAutomaticRotationTriggerID.Value), 0)
-            automaticRotationTriggerType = If(radAutomaticRotationSolenoid.Checked, eRomIDType.Solenoid, eRomIDType.Lamp)
+            automaticRotationTriggerType = If(radAutomaticRotationSW.Checked, eRomIDType.Switch, If(radAutomaticRotationB2S.Checked, eRomIDType.B2SCommand, If(radAutomaticRotationSolenoid.Checked, eRomIDType.Solenoid, eRomIDType.Lamp)))
             automaticRotationSteps = CInt(numericAutomaticRotationSteps.Value)
             automaticRotationInterval = CInt(numericAutomaticRotationInterval.Value)
             automaticRotationDirection = CType(cmbAutomaticRotationDirection.SelectedIndex, eSnippitRotationDirection)
@@ -341,6 +345,8 @@ Public Class formSnippitSettings
         numericAutomaticRotationTriggerID.Enabled = automaticRotationActive AndAlso radAutomaticRotationTriggered.Checked
         radAutomaticRotationLamp.Enabled = numericAutomaticRotationTriggerID.Enabled
         radAutomaticRotationSolenoid.Enabled = numericAutomaticRotationTriggerID.Enabled
+        radAutomaticRotationB2S.Enabled = numericAutomaticRotationTriggerID.Enabled
+        radAutomaticRotationSW.Enabled = numericAutomaticRotationTriggerID.Enabled
         cmbAutomaticRotationDirection.Enabled = automaticRotationActive
         numericAutomaticRotationSteps.Enabled = automaticRotationActive
         numericAutomaticRotationInterval.Enabled = automaticRotationActive
@@ -498,7 +504,11 @@ Public Class formSnippitSettings
         pnlAutomaticRotationTriggerType = New Panel With {.Name = "pnlAutomaticRotationTriggerType", .Location = New Point(236, 163), .Size = New Size(215, 25)}
         radAutomaticRotationLamp = New RadioButton With {.Name = "radAutomaticRotationLamp", .Text = "Lamp", .AutoSize = True, .Checked = True, .Location = New Point(0, 3)}
         radAutomaticRotationSolenoid = New RadioButton With {.Name = "radAutomaticRotationSolenoid", .Text = "Solenoid", .AutoSize = True, .Location = New Point(78, 3)}
-        pnlAutomaticRotationTriggerType.Controls.AddRange(New Control() {radAutomaticRotationLamp, radAutomaticRotationSolenoid})
+        radAutomaticRotationSolenoid.Left = 53
+        radAutomaticRotationB2S = New RadioButton With {.Name = "radAutomaticRotationB2S", .Text = "B2S", .AutoSize = True, .Location = New Point(124, 3)}
+        radAutomaticRotationSW = New RadioButton With {.Name = "radAutomaticRotationSW", .Text = "SW", .AutoSize = True, .Location = New Point(174, 3)}
+        pnlAutomaticRotationTriggerType.Width = 230
+        pnlAutomaticRotationTriggerType.Controls.AddRange(New Control() {radAutomaticRotationLamp, radAutomaticRotationSolenoid, radAutomaticRotationB2S, radAutomaticRotationSW})
 
         grpAutomaticRotation.Controls.Add(lblMechID)
         grpAutomaticRotation.Controls.Add(numericMechID)
@@ -557,6 +567,13 @@ Public Class formSnippitSettings
         End If
 
         grpAutomaticRotation.Controls.AddRange(New Control() {chkAutomaticRotation, radAutomaticRotationContinuous, radAutomaticRotationTriggered, lblAutomaticRotationTriggerID, numericAutomaticRotationTriggerID, pnlAutomaticRotationTriggerType, lblAutomaticRotationDirection, cmbAutomaticRotationDirection, lblAutomaticRotationSteps, numericAutomaticRotationSteps, lblAutomaticRotationInterval, numericAutomaticRotationInterval, lblAutomaticRotationMilliseconds})
+        ' Four source choices need a complete row below the command ID.
+        pnlAutomaticRotationTriggerType.Location = New Point(18, 191)
+        pnlAutomaticRotationTriggerType.Size = New Size(grpAutomaticRotation.Width - 36, 25)
+        For Each control As Control In grpAutomaticRotation.Controls
+            If control IsNot pnlAutomaticRotationTriggerType AndAlso control.Top >= 193 Then control.Top += 30
+        Next
+        grpAutomaticRotation.Height += 30
         Controls.Add(grpAutomaticRotation)
 
         groupGeneral.Visible = False
@@ -568,7 +585,7 @@ Public Class formSnippitSettings
         btnCancel.Top = newButtonY
     End Sub
 
-    Private Sub AutomaticRotationChanged(sender As Object, e As EventArgs) Handles chkAutomaticRotation.CheckedChanged, radAutomaticRotationContinuous.CheckedChanged, radAutomaticRotationTriggered.CheckedChanged, numericAutomaticRotationTriggerID.ValueChanged, radAutomaticRotationLamp.CheckedChanged, radAutomaticRotationSolenoid.CheckedChanged, cmbAutomaticRotationDirection.SelectedIndexChanged, numericAutomaticRotationSteps.ValueChanged, numericAutomaticRotationInterval.ValueChanged, cmbRotationStopBehaviour.SelectedIndexChanged, numericMechID.ValueChanged
+    Private Sub AutomaticRotationChanged(sender As Object, e As EventArgs) Handles chkAutomaticRotation.CheckedChanged, radAutomaticRotationContinuous.CheckedChanged, radAutomaticRotationTriggered.CheckedChanged, numericAutomaticRotationTriggerID.ValueChanged, radAutomaticRotationLamp.CheckedChanged, radAutomaticRotationSolenoid.CheckedChanged, radAutomaticRotationB2S.CheckedChanged, radAutomaticRotationSW.CheckedChanged, cmbAutomaticRotationDirection.SelectedIndexChanged, numericAutomaticRotationSteps.ValueChanged, numericAutomaticRotationInterval.ValueChanged, cmbRotationStopBehaviour.SelectedIndexChanged, numericMechID.ValueChanged
         ' numericMechID is created by InitializeComponent before the rebuilt
         ' rotation panel exists, so its initial Minimum/Value events are ignored.
         If grpAutomaticRotation Is Nothing OrElse chkAutomaticRotation Is Nothing Then Return
@@ -578,7 +595,9 @@ Public Class formSnippitSettings
         ' after the author chooses Lamp, Solenoid, or edits the command ID.
         If Object.ReferenceEquals(sender, numericAutomaticRotationTriggerID) OrElse
            (Object.ReferenceEquals(sender, radAutomaticRotationLamp) AndAlso radAutomaticRotationLamp.Checked) OrElse
-           (Object.ReferenceEquals(sender, radAutomaticRotationSolenoid) AndAlso radAutomaticRotationSolenoid.Checked) Then
+           (Object.ReferenceEquals(sender, radAutomaticRotationSolenoid) AndAlso radAutomaticRotationSolenoid.Checked) OrElse
+           (Object.ReferenceEquals(sender, radAutomaticRotationB2S) AndAlso radAutomaticRotationB2S.Checked) OrElse
+           (Object.ReferenceEquals(sender, radAutomaticRotationSW) AndAlso radAutomaticRotationSW.Checked) Then
             radAutomaticRotationTriggered.Checked = True
         End If
         IsDirty = True

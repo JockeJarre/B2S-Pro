@@ -80,6 +80,7 @@ Public Enum eRomIDType
     GIString = 3
     Mech = 4
     Switch = 5
+    B2SCommand = 6
 End Enum
 
 Public Enum eDualMode

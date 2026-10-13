@@ -1199,7 +1199,7 @@ Public Class B2SNeonProgressControl
                 g.DrawPath(border, outline)
             End Using
         End Using
-        Using labelFont As New Font("Segoe UI", 8.0F, FontStyle.Bold)
+        Using labelFont As New Font("Segoe UI", 9.0F, FontStyle.Bold)
             Dim label As String = progressValue.ToString() & "%"
             Dim flags As TextFormatFlags = TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter Or TextFormatFlags.NoPadding
             TextRenderer.DrawText(g, label, labelFont, New Rectangle(1, 1, Width, Height), Color.Black, flags)

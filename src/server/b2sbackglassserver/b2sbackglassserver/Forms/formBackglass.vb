@@ -15,39 +15,136 @@ Public Class formBackglass
     Private B2SScreen As B2SScreen = Nothing  '  was New B2SScreen(), delayed to do later  - Westworld, 2016-11-18
     Private B2SLED As B2SLED = New B2SLED()
     Private B2SAnimation As B2SAnimation = New B2SAnimation()
-    Private ReadOnly testerSwitchOnUntil(100) As DateTime
-    Private ReadOnly testerSwitchPendingOff(100) As Boolean
+    Private ReadOnly testerSwitchOnUntil(255) As DateTime
+    Private ReadOnly testerSwitchPendingOff(255) As Boolean
 
     Public Sub SetTesterSwitchState(ByVal switchID As Integer, ByVal state As Boolean)
         If Me.InvokeRequired Then
             Me.BeginInvoke(New Action(Of Integer, Boolean)(AddressOf SetTesterSwitchState), switchID, state)
             Return
         End If
-        If switchID < 1 OrElse switchID > 100 OrElse Not B2SData.UsedRomSwitchIDs.ContainsKey(switchID) Then Return
+        If switchID < 1 OrElse switchID > 255 OrElse Not B2SData.UsedRomSwitchIDs.ContainsKey(switchID) Then Return
+        ApplySwitchTriggers(switchID, state)
         If state Then
             testerSwitchPendingOff(switchID) = False
             testerSwitchOnUntil(switchID) = DateTime.UtcNow.AddMilliseconds(150)
             For Each box As B2SBaseBox In B2SData.UsedRomSwitchIDs(switchID)
                 Dim switchPicture As B2SPictureBox = TryCast(box, B2SPictureBox)
-                If switchPicture IsNot Nothing Then switchPicture.Visible = Not switchPicture.RomInverted
+                If switchPicture IsNot Nothing AndAlso Not switchPicture.NativeRotation Then switchPicture.Visible = Not switchPicture.RomInverted
             Next
         ElseIf DateTime.UtcNow < testerSwitchOnUntil(switchID) Then
             testerSwitchPendingOff(switchID) = True
         Else
             For Each box As B2SBaseBox In B2SData.UsedRomSwitchIDs(switchID)
                 Dim switchPicture As B2SPictureBox = TryCast(box, B2SPictureBox)
-                If switchPicture IsNot Nothing Then switchPicture.Visible = switchPicture.RomInverted
+                If switchPicture IsNot Nothing AndAlso Not switchPicture.NativeRotation Then switchPicture.Visible = switchPicture.RomInverted
             Next
         End If
     End Sub
 
     Public Sub FlushTesterSwitchOffs()
-        For switchID As Integer = 1 To 100
+        For switchID As Integer = 1 To 255
             If testerSwitchPendingOff(switchID) AndAlso DateTime.UtcNow >= testerSwitchOnUntil(switchID) Then
                 testerSwitchPendingOff(switchID) = False
                 SetTesterSwitchState(switchID, False)
             End If
         Next
+    End Sub
+
+    Private ReadOnly switchTriggerKnown(255) As Boolean
+    Private ReadOnly switchTriggerState(255) As Boolean
+    Private ReadOnly switchRandomRunning As New Generic.Dictionary(Of Integer, String)()
+
+    Private Sub RegisterSwitchTriggerRoutes()
+        Array.Clear(switchTriggerKnown, 0, switchTriggerKnown.Length)
+        Array.Clear(switchTriggerState, 0, switchTriggerState.Length)
+        switchRandomRunning.Clear()
+        For Each picture As B2SPictureBox In B2SData.Illuminations.Values.Concat(B2SData.DMDIlluminations.Values)
+            If picture.MotionPathPoints.Count >= 2 AndAlso picture.MotionPathSwitchID > 0 Then
+                If Not B2SData.UsedMotionPathSwitchIDs.ContainsKey(picture.MotionPathSwitchID) Then B2SData.UsedMotionPathSwitchIDs.Add(picture.MotionPathSwitchID, New Generic.List(Of B2SPictureBox)())
+                B2SData.UsedMotionPathSwitchIDs(picture.MotionPathSwitchID).Add(picture)
+            End If
+            If picture.MotionPathPoints.Count >= 2 AndAlso picture.MotionPathStopSwitchID > 0 Then
+                If Not B2SData.UsedMotionPathStopSwitchIDs.ContainsKey(picture.MotionPathStopSwitchID) Then B2SData.UsedMotionPathStopSwitchIDs.Add(picture.MotionPathStopSwitchID, New Generic.List(Of B2SPictureBox)())
+                B2SData.UsedMotionPathStopSwitchIDs(picture.MotionPathStopSwitchID).Add(picture)
+            End If
+            If picture.MotionPathPoints.Count >= 2 AndAlso picture.MotionPathResumeSwitchID > 0 Then
+                If Not B2SData.UsedMotionPathResumeSwitchIDs.ContainsKey(picture.MotionPathResumeSwitchID) Then B2SData.UsedMotionPathResumeSwitchIDs.Add(picture.MotionPathResumeSwitchID, New Generic.List(Of B2SPictureBox)())
+                B2SData.UsedMotionPathResumeSwitchIDs(picture.MotionPathResumeSwitchID).Add(picture)
+            End If
+            If (picture.MotionPathExitPoints.Count >= 2 OrElse picture.MotionPathGravityDrop) AndAlso picture.MotionPathRemoveSwitchID > 0 Then
+                If Not B2SData.UsedMotionPathRemoveSwitchIDs.ContainsKey(picture.MotionPathRemoveSwitchID) Then B2SData.UsedMotionPathRemoveSwitchIDs.Add(picture.MotionPathRemoveSwitchID, New Generic.List(Of B2SPictureBox)())
+                B2SData.UsedMotionPathRemoveSwitchIDs(picture.MotionPathRemoveSwitchID).Add(picture)
+            End If
+        Next
+        Dim switchIDs As New Generic.HashSet(Of Integer)(B2SData.UsedRomSwitchIDs.Keys)
+        switchIDs.UnionWith(B2SData.UsedMotionPathSwitchIDs.Keys)
+        switchIDs.UnionWith(B2SData.UsedMotionPathStopSwitchIDs.Keys)
+        switchIDs.UnionWith(B2SData.UsedMotionPathResumeSwitchIDs.Keys)
+        switchIDs.UnionWith(B2SData.UsedMotionPathRemoveSwitchIDs.Keys)
+        switchIDs.UnionWith(B2SData.PivotSwitchIDs.Keys)
+        switchIDs.UnionWith(B2SData.UsedAnimationSwitchIDs.Keys)
+        switchIDs.UnionWith(B2SData.UsedRandomAnimationSwitchIDs.Keys)
+        switchIDs.UnionWith(B2SData.GetPhysicsLauncherIDs(5))
+        For Each id As Integer In switchIDs
+            If id > 0 AndAlso id <= 255 AndAlso Not B2SData.UsedRomSwitchIDs.ContainsKey(id) Then B2SData.UsedRomSwitchIDs.Add(id, New B2SBaseBox() {})
+        Next
+#If B2S = "EXE" Then
+        If switchIDs.Count > 0 Then B2SData.AnnounceTesterSwitches()
+        ' The DLL suppresses initial OFF tester messages in EXE mode.
+        ' Initialize new switch animation routes here so inverted joins start OFF.
+        For Each id As Integer In switchIDs
+            If id > 0 AndAlso id <= 255 Then ApplySwitchTriggers(id, False)
+        Next
+#End If
+    End Sub
+
+    Private Sub ApplySwitchTriggers(ByVal id As Integer, ByVal state As Boolean)
+        If switchTriggerKnown(id) AndAlso switchTriggerState(id) = state Then Return
+        Dim rising As Boolean = state AndAlso (Not switchTriggerKnown(id) OrElse Not switchTriggerState(id))
+        switchTriggerKnown(id) = True : switchTriggerState(id) = state
+        For Each box As B2SBaseBox In B2SData.UsedRomSwitchIDs(id)
+            Dim picture As B2SPictureBox = TryCast(box, B2SPictureBox)
+            If picture IsNot Nothing AndAlso picture.NativeRotation Then picture.SetNativeRotationState(state Xor picture.RomInverted)
+        Next
+        B2SData.SetPivotTriggerState(B2SData.PivotSwitchIDs, id, If(state, 1, 0))
+        If rising Then
+            B2SData.FirePhysicsLaunchers(5, id, 1)
+            If B2SData.UsedMotionPathSwitchIDs.ContainsKey(id) Then B2SData.StartMotionPaths(B2SData.UsedMotionPathSwitchIDs(id))
+            If B2SData.UsedMotionPathRemoveSwitchIDs.ContainsKey(id) Then B2SData.RemoveMotionPaths(B2SData.UsedMotionPathRemoveSwitchIDs(id))
+            If B2SData.UsedMotionPathStopSwitchIDs.ContainsKey(id) Then
+                For Each picture As B2SPictureBox In B2SData.UsedMotionPathStopSwitchIDs(id)
+                    picture.StopMotionPath()
+                Next
+            End If
+            If B2SData.UsedMotionPathResumeSwitchIDs.ContainsKey(id) Then
+                For Each picture As B2SPictureBox In B2SData.UsedMotionPathResumeSwitchIDs(id)
+                    picture.ResumeMotionPath()
+                Next
+            End If
+        End If
+        If B2SData.UsedAnimationSwitchIDs.ContainsKey(id) Then
+            For Each animation As B2SData.AnimationInfo In B2SData.UsedAnimationSwitchIDs(id)
+                If state Xor animation.Inverted Then
+                    StartAnimation(animation.AnimationName)
+                Else
+                    StopAnimation(animation.AnimationName)
+                End If
+            Next
+        End If
+        If B2SData.UsedRandomAnimationSwitchIDs.ContainsKey(id) Then
+            If state Then
+                Dim choices = B2SData.UsedRandomAnimationSwitchIDs(id)
+                If Not choices.Any(Function(animation) IsAnimationRunning(animation.AnimationName)) Then
+                    Dim choice = choices(RandomStarter(choices.Length))
+                    switchRandomRunning(id) = choice.AnimationName
+                    StartAnimation(choice.AnimationName)
+                End If
+            ElseIf switchRandomRunning.ContainsKey(id) Then
+                StopAnimation(switchRandomRunning(id))
+                switchRandomRunning.Remove(id)
+            End If
+        End If
     End Sub
 
     Private formDMD As formDMD = Nothing
@@ -2746,7 +2843,7 @@ Public Class formBackglass
                                 Dim triggerType As Integer = CInt(innerNode.Attributes("AutomaticRotationTriggerType").InnerText)
                                 romidtype = If(triggerType = CInt(B2SBaseBox.eRomIDType.Solenoid),
                                                B2SBaseBox.eRomIDType.Solenoid,
-                                               B2SBaseBox.eRomIDType.Lamp)
+                                               If(triggerType = CInt(B2SBaseBox.eRomIDType.Switch), B2SBaseBox.eRomIDType.Switch, B2SBaseBox.eRomIDType.Lamp))
                             End If
                             If automaticrotationcontinuous Then
                                 romid = 0
@@ -3032,6 +3129,10 @@ Public Class formBackglass
                         picbox.BehindCanvas = snippitbehindcanvas
                         picbox.MotionPathDuration = motionPathDuration
                         picbox.MotionPathLoop = motionPathLoop
+                        If innerNode.Attributes("MotionPathSwitchID") IsNot Nothing Then picbox.MotionPathSwitchID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathSwitchID").InnerText)))
+                        If innerNode.Attributes("MotionPathStopSwitchID") IsNot Nothing Then picbox.MotionPathStopSwitchID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathStopSwitchID").InnerText)))
+                        If innerNode.Attributes("MotionPathResumeSwitchID") IsNot Nothing Then picbox.MotionPathResumeSwitchID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathResumeSwitchID").InnerText)))
+                        If innerNode.Attributes("MotionPathRemoveSwitchID") IsNot Nothing Then picbox.MotionPathRemoveSwitchID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathRemoveSwitchID").InnerText)))
                         picbox.MotionPathSolenoidID = motionPathSolenoidID
                         picbox.MotionPathLampID = motionPathLampID
                         picbox.MotionPathB2SID = motionPathB2SID
@@ -3922,6 +4023,9 @@ Public Class formBackglass
                                             Case "L"
                                                 Dim animations As B2SData.AnimationCollection = If(randomstart, B2SData.UsedRandomAnimationLampIDs, B2SData.UsedAnimationLampIDs)
                                                 If id1 > 0 Then For i As Integer = 1 To randomquality : animations.Add(id1, New B2SData.AnimationInfo(name, False)) : Next
+                                            Case "W"
+                                                Dim animations As B2SData.AnimationCollection = If(randomstart, B2SData.UsedRandomAnimationSwitchIDs, B2SData.UsedAnimationSwitchIDs)
+                                                If id1 > 0 Then For i As Integer = 1 To randomquality : animations.Add(id1, New B2SData.AnimationInfo(name, False)) : Next
                                             Case "S"
                                                 Dim animations As B2SData.AnimationCollection = If(randomstart, B2SData.UsedRandomAnimationSolenoidIDs, B2SData.UsedAnimationSolenoidIDs)
                                                 If id1 > 0 Then For i As Integer = 1 To randomquality : animations.Add(id1, New B2SData.AnimationInfo(name, False)) : Next
@@ -3937,6 +4041,9 @@ Public Class formBackglass
                                                     Select Case idJoin.Substring(0, 2).ToUpper
                                                         Case "IL"
                                                             Dim animations As B2SData.AnimationCollection = If(randomstart, B2SData.UsedRandomAnimationLampIDs, B2SData.UsedAnimationLampIDs)
+                                                            If id2 > 0 Then animations.Add(id2, New B2SData.AnimationInfo(name, True))
+                                                        Case "IW"
+                                                            Dim animations As B2SData.AnimationCollection = If(randomstart, B2SData.UsedRandomAnimationSwitchIDs, B2SData.UsedAnimationSwitchIDs)
                                                             If id2 > 0 Then animations.Add(id2, New B2SData.AnimationInfo(name, True))
                                                         Case "IS"
                                                             Dim animations As B2SData.AnimationCollection = If(randomstart, B2SData.UsedRandomAnimationSolenoidIDs, B2SData.UsedAnimationSolenoidIDs)
@@ -3971,6 +4078,7 @@ Public Class formBackglass
 #End If
             End If
 
+            RegisterSwitchTriggerRoutes()
             ' set info flags to dirty to load them
 #If B2S = "DLL" Then
             B2SData.IsInfoDirty = True
@@ -4182,14 +4290,14 @@ Public Class formBackglass
                 ' continuous-rotation caches finish preparing in the background.
                 illumination.Value.Visible = True
             End If
-            If illumination.Value.MotionPathPoints.Count >= 2 AndAlso illumination.Value.MotionPathSolenoidID = 0 AndAlso illumination.Value.MotionPathLampID = 0 AndAlso illumination.Value.MotionPathB2SID = 0 Then illumination.Value.StartMotionPath()
+            If illumination.Value.MotionPathPoints.Count >= 2 AndAlso illumination.Value.MotionPathSolenoidID = 0 AndAlso illumination.Value.MotionPathLampID = 0 AndAlso illumination.Value.MotionPathB2SID = 0 AndAlso illumination.Value.MotionPathSwitchID = 0 Then illumination.Value.StartMotionPath()
         Next
         For Each illumination As KeyValuePair(Of String, B2SPictureBox) In B2SData.DMDIlluminations
             illumination.Value.PrepareNativeRotationFrames()
             If illumination.Value.NativeRotation AndAlso illumination.Value.AutoStartRotation Then
                 illumination.Value.Visible = True
             End If
-            If illumination.Value.MotionPathPoints.Count >= 2 AndAlso illumination.Value.MotionPathSolenoidID = 0 AndAlso illumination.Value.MotionPathLampID = 0 AndAlso illumination.Value.MotionPathB2SID = 0 Then illumination.Value.StartMotionPath()
+            If illumination.Value.MotionPathPoints.Count >= 2 AndAlso illumination.Value.MotionPathSolenoidID = 0 AndAlso illumination.Value.MotionPathLampID = 0 AndAlso illumination.Value.MotionPathB2SID = 0 AndAlso illumination.Value.MotionPathSwitchID = 0 Then illumination.Value.StartMotionPath()
         Next
 
     End Sub

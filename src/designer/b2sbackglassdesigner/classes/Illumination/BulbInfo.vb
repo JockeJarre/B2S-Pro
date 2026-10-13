@@ -151,6 +151,10 @@
         Public MotionPathPoints As New List(Of PointF)()
         Public MotionPathDuration As Integer = 3000
         Public MotionPathLoop As Boolean = False
+        Public MotionPathSwitchID As Integer = 0
+        Public MotionPathStopSwitchID As Integer = 0
+        Public MotionPathResumeSwitchID As Integer = 0
+        Public MotionPathRemoveSwitchID As Integer = 0
         Public MotionPathSolenoidID As Integer = 0
         Public MotionPathLampID As Integer = 0
         Public MotionPathB2SID As Integer = 0

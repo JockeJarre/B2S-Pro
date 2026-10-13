@@ -149,6 +149,10 @@ Public Class B2SPictureBox
     Public Property FlasherPulseDuration() As Integer = 0
     Public Property MotionPathDuration() As Integer = 3000
     Public Property MotionPathLoop() As Boolean = False
+    Public Property MotionPathSwitchID() As Integer = 0
+    Public Property MotionPathStopSwitchID() As Integer = 0
+    Public Property MotionPathResumeSwitchID() As Integer = 0
+    Public Property MotionPathRemoveSwitchID() As Integer = 0
     Public Property MotionPathSolenoidID() As Integer = 0
     Public Property MotionPathLampID() As Integer = 0
     Public Property MotionPathB2SID() As Integer = 0

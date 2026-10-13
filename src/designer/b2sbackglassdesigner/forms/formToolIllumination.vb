@@ -316,12 +316,9 @@ Public Class formToolIllumination
     Public Property AutomaticRotationDirection() As eSnippitRotationDirection = eSnippitRotationDirection.Clockwise
     Public Property AutomaticRotationStopBehaviour() As eSnippitRotationStopBehaviour = eSnippitRotationStopBehaviour.RunAnimationTillEnd
 
-    Private Sub formToolIllumination_Load(sender As Object, e As System.EventArgs) Handles Me.Load
-        cmbDodgeColor.SelectionLength = 0
-        cmbInitState.SelectionLength = 0
-        cmbROMIDType.SelectionLength = 0
-        cmbB2SIDType.SelectionLength = 0
-    End Sub
+    ' These controls are DropDownList selections, not editable text boxes.
+    ' SelectionLength queries a native edit selection that does not exist and
+    ' can pass an invalid start position to ComboBox.Select during startup.
 
     Private Sub Name_TextChanged(sender As System.Object, e As System.EventArgs) Handles txtName.TextChanged
         RaiseEvent DataChanged(Me, New IlluminationEventArgs(eIlluminationDataType.Name, txtName.Text))

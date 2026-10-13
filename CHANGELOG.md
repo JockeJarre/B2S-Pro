@@ -4,6 +4,16 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 
 ## 1.0.7 / Server 3.0.6 — 2026-10-11
 
+### October 13 update — versions unchanged
+
+- Keep the full toolbar accessible with a smaller logo, a permanent progress bar in the upper menu strip, and Lamp filter under View. Remove the visible Undo/Redo buttons and zoom percentage box while preserving their existing commands and internal zoom state.
+- Give Manage Animations separate B2S, Lamp, Solenoid, and SW source choices, a command ID, and inversion without overlapping the preview or timing controls. Preserve existing GI and mixed legacy joins.
+- Add B2S and SW sources to snippet rotation settings. Keep source choices separate from continuous/triggered mode.
+- Route SW input through the existing controller connection for lights, flashers, snippets, animation start/stop, native rotation, motion-path entry/exit/stop/resume, trough drains, pivots, and physics launchers on Backglass and DMD. Retain every object assigned to the same switch.
+- Preserve SW values through project saves and exported backglasses while retaining existing B2S, Lamp, Solenoid, GI, and legacy animation mappings. SW operation confirmed in local VPX testing.
+- Remove invalid editable-selection queries from the illumination panel's selection-only dropdowns during startup.
+- Allow manual editing of the Server folder in both setup programs, retaining automatic detection and the Change button. Both setup changes confirmed in local user testing.
+
 ### Confirmed local UI update — versions unchanged
 
 - Restore window dragging from the logo and blank header/menu/toolbar areas. A stationary click keeps the window maximized; an actual drag restores and moves it between monitors.

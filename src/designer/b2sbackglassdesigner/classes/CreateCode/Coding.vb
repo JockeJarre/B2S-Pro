@@ -733,7 +733,7 @@ Public Class Coding
                                     nodeBulb.SetAttribute("PivotDuration", Math.Max(10, Math.Min(5000, .SnippitInfo.PivotDuration)).ToString())
                                     nodeBulb.SetAttribute("PivotRandomStrength", Math.Max(0.0F, Math.Min(100.0F, .SnippitInfo.PivotRandomStrength)).ToString("R", Globalization.CultureInfo.InvariantCulture))
                                     If .SnippitInfo.PivotAutomaticOscillation Then nodeBulb.SetAttribute("PivotAutomaticOscillation", "1")
-                                    nodeBulb.SetAttribute("PivotTriggerType", Math.Max(0, Math.Min(4, .SnippitInfo.PivotTriggerType)).ToString())
+                                    nodeBulb.SetAttribute("PivotTriggerType", Math.Max(0, Math.Min(5, .SnippitInfo.PivotTriggerType)).ToString())
                                     nodeBulb.SetAttribute("PivotTriggerID", Math.Max(0, Math.Min(255, .SnippitInfo.PivotTriggerID)).ToString())
                                     nodeBulb.SetAttribute("PivotDownTrigger", .SnippitInfo.PivotDownTrigger.Trim())
                                     nodeBulb.SetAttribute("PivotUpTrigger", .SnippitInfo.PivotUpTrigger.Trim())
@@ -782,6 +782,10 @@ Public Class Coding
                                     nodeBulb.SetAttribute("MotionPathPoints", SerializeMotionPathPoints(.SnippitInfo.MotionPathPoints))
                                     nodeBulb.SetAttribute("MotionPathDuration", Math.Max(250, Math.Min(30000, .SnippitInfo.MotionPathDuration)).ToString())
                                     nodeBulb.SetAttribute("MotionPathLoop", If(.SnippitInfo.MotionPathLoop, "1", "0"))
+                                    nodeBulb.SetAttribute("MotionPathSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathSwitchID)).ToString())
+                                    nodeBulb.SetAttribute("MotionPathStopSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathStopSwitchID)).ToString())
+                                    nodeBulb.SetAttribute("MotionPathResumeSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathResumeSwitchID)).ToString())
+                                    nodeBulb.SetAttribute("MotionPathRemoveSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathRemoveSwitchID)).ToString())
                                     nodeBulb.SetAttribute("MotionPathSolenoidID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathSolenoidID)).ToString())
                                     nodeBulb.SetAttribute("MotionPathLampID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathLampID)).ToString())
                                     nodeBulb.SetAttribute("MotionPathB2SID", Math.Max(0, Math.Min(250, .SnippitInfo.MotionPathB2SID)).ToString())
@@ -815,7 +819,7 @@ Public Class Coding
                                 nodeBulb.SetAttribute("AutomaticRotationEnabled", If(.SnippitInfo.AutomaticRotationEnabled, "1", "0"))
                                 nodeBulb.SetAttribute("AutomaticRotationContinuous", If(.SnippitInfo.AutomaticRotationContinuous, "1", "0"))
                                 nodeBulb.SetAttribute("AutomaticRotationTriggerID", Math.Max(0, .SnippitInfo.AutomaticRotationTriggerID).ToString())
-                                nodeBulb.SetAttribute("AutomaticRotationTriggerType", CInt(If(.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.Solenoid, eRomIDType.Solenoid, eRomIDType.Lamp)).ToString())
+                                nodeBulb.SetAttribute("AutomaticRotationTriggerType", CInt(If(.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.B2SCommand, eRomIDType.B2SCommand, If(.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.Switch, eRomIDType.Switch, If(.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.Solenoid, eRomIDType.Solenoid, eRomIDType.Lamp)))).ToString())
                                 nodeBulb.SetAttribute("AutomaticRotationSteps", .SnippitInfo.AutomaticRotationSteps.ToString())
                                 nodeBulb.SetAttribute("AutomaticRotationInterval", .SnippitInfo.AutomaticRotationInterval.ToString())
                                 nodeBulb.SetAttribute("AutomaticRotationDirection", CInt(.SnippitInfo.AutomaticRotationDirection).ToString())
@@ -857,7 +861,7 @@ Public Class Coding
                                 nodeBulb.RemoveAttribute("B2SValue")
                                 Dim continuousRotation As Boolean = (.SnippitInfo.AutomaticRotationContinuous OrElse .SnippitInfo.AutomaticRotationTriggerID <= 0)
                                 nodeBulb.SetAttribute("RomID", If(continuousRotation, 0, Math.Max(0, .SnippitInfo.AutomaticRotationTriggerID)).ToString())
-                                nodeBulb.SetAttribute("RomIDType", If(continuousRotation, 0, CInt(.SnippitInfo.AutomaticRotationTriggerType)).ToString())
+                                nodeBulb.SetAttribute("RomIDType", If(continuousRotation, 0, CInt(If(.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.B2SCommand, eRomIDType.Lamp, .SnippitInfo.AutomaticRotationTriggerType))).ToString())
                                 nodeBulb.SetAttribute("RomInverted", "0")
                                 ' One-image rotation is its own Standard Image format.
                                 ' It never carries a legacy rotating-snippet contract.
@@ -1431,7 +1435,7 @@ Public Class Coding
                             If innerNode.Attributes("PivotDuration") IsNot Nothing Then bulb.SnippitInfo.PivotDuration = Math.Max(10, Math.Min(5000, CInt(innerNode.Attributes("PivotDuration").InnerText)))
                             bulb.SnippitInfo.PivotRandomStrength = ReadPivotSingle(innerNode, "PivotRandomStrength", 0.0F, 0.0F, 100.0F)
                             bulb.SnippitInfo.PivotAutomaticOscillation = ReadPivotInteger(innerNode, "PivotAutomaticOscillation", 0, 0, 1) = 1
-                            If innerNode.Attributes("PivotTriggerType") IsNot Nothing Then bulb.SnippitInfo.PivotTriggerType = Math.Max(0, Math.Min(4, CInt(innerNode.Attributes("PivotTriggerType").InnerText)))
+                            If innerNode.Attributes("PivotTriggerType") IsNot Nothing Then bulb.SnippitInfo.PivotTriggerType = Math.Max(0, Math.Min(5, CInt(innerNode.Attributes("PivotTriggerType").InnerText)))
                             If innerNode.Attributes("PivotTriggerID") IsNot Nothing Then bulb.SnippitInfo.PivotTriggerID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("PivotTriggerID").InnerText)))
                             If innerNode.Attributes("PivotDownTrigger") IsNot Nothing Then bulb.SnippitInfo.PivotDownTrigger = innerNode.Attributes("PivotDownTrigger").InnerText.Trim()
                             If innerNode.Attributes("PivotUpTrigger") IsNot Nothing Then bulb.SnippitInfo.PivotUpTrigger = innerNode.Attributes("PivotUpTrigger").InnerText.Trim()
@@ -1470,7 +1474,7 @@ Public Class Coding
                             End While
                             bulb.SnippitInfo.PhysicsLauncherEnabled = ReadPivotInteger(innerNode, "PhysicsLauncherEnabled", 0, 0, 1) = 1
                             bulb.SnippitInfo.PhysicsLauncherFollowPivot = ReadPivotInteger(innerNode, "PhysicsLauncherFollowPivot", 0, 0, 1) = 1
-                            bulb.SnippitInfo.PhysicsLauncherTriggerType = ReadPivotInteger(innerNode, "PhysicsLauncherTriggerType", 1, 1, 3)
+                            bulb.SnippitInfo.PhysicsLauncherTriggerType = ReadPivotInteger(innerNode, "PhysicsLauncherTriggerType", 1, 1, 5)
                             bulb.SnippitInfo.PhysicsLauncherTriggerID = ReadPivotInteger(innerNode, "PhysicsLauncherTriggerID", 0, 0, 255)
                             bulb.SnippitInfo.PhysicsLauncherX = ReadPivotSingle(innerNode, "PhysicsLauncherX", CSng(bulb.Location.X + bulb.Size.Width / 2.0F), -100000.0F, 100000.0F)
                             bulb.SnippitInfo.PhysicsLauncherY = ReadPivotSingle(innerNode, "PhysicsLauncherY", CSng(bulb.Location.Y + bulb.Size.Height / 2.0F), -100000.0F, 100000.0F)
@@ -1488,6 +1492,10 @@ Public Class Coding
                             If innerNode.Attributes("MotionPathLoop") IsNot Nothing Then
                                 bulb.SnippitInfo.MotionPathLoop = (innerNode.Attributes("MotionPathLoop").InnerText = "1")
                             End If
+                            bulb.SnippitInfo.MotionPathSwitchID = ReadPivotInteger(innerNode, "MotionPathSwitchID", 0, 0, 255)
+                            bulb.SnippitInfo.MotionPathStopSwitchID = ReadPivotInteger(innerNode, "MotionPathStopSwitchID", 0, 0, 255)
+                            bulb.SnippitInfo.MotionPathResumeSwitchID = ReadPivotInteger(innerNode, "MotionPathResumeSwitchID", 0, 0, 255)
+                            bulb.SnippitInfo.MotionPathRemoveSwitchID = ReadPivotInteger(innerNode, "MotionPathRemoveSwitchID", 0, 0, 255)
                             If innerNode.Attributes("MotionPathSolenoidID") IsNot Nothing Then
                                 Dim motionSolenoidID As Integer
                                 If Integer.TryParse(innerNode.Attributes("MotionPathSolenoidID").InnerText, motionSolenoidID) Then
@@ -1586,7 +1594,7 @@ Public Class Coding
                             If innerNode.Attributes("AutomaticRotationTriggerID") IsNot Nothing Then bulb.SnippitInfo.AutomaticRotationTriggerID = Math.Max(0, CInt(innerNode.Attributes("AutomaticRotationTriggerID").InnerText))
                             If innerNode.Attributes("AutomaticRotationTriggerType") IsNot Nothing Then
                                 Dim triggerType As Integer = CInt(innerNode.Attributes("AutomaticRotationTriggerType").InnerText)
-                                bulb.SnippitInfo.AutomaticRotationTriggerType = If(triggerType = CInt(eRomIDType.Solenoid), eRomIDType.Solenoid, eRomIDType.Lamp)
+                                bulb.SnippitInfo.AutomaticRotationTriggerType = If(triggerType = CInt(eRomIDType.B2SCommand), eRomIDType.B2SCommand, If(triggerType = CInt(eRomIDType.Switch), eRomIDType.Switch, If(triggerType = CInt(eRomIDType.Solenoid), eRomIDType.Solenoid, eRomIDType.Lamp)))
                             End If
                             If innerNode.Attributes("AutomaticRotationSteps") IsNot Nothing Then bulb.SnippitInfo.AutomaticRotationSteps = Math.Max(2, Math.Min(360, CInt(innerNode.Attributes("AutomaticRotationSteps").InnerText)))
                             If innerNode.Attributes("AutomaticRotationInterval") IsNot Nothing Then bulb.SnippitInfo.AutomaticRotationInterval = Math.Max(10, Math.Min(500, CInt(innerNode.Attributes("AutomaticRotationInterval").InnerText)))
@@ -3134,7 +3142,7 @@ Public Class Coding
         animationNode.SetAttribute("Interval", Math.Max(10, Math.Min(500, runtimeInterval)).ToString())
         animationNode.SetAttribute("Loops", "0")
         Dim continuous As Boolean = bulb.SnippitInfo.AutomaticRotationContinuous OrElse bulb.SnippitInfo.AutomaticRotationTriggerID <= 0
-        Dim triggerPrefix As String = If(bulb.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.Solenoid, "S", "L")
+        Dim triggerPrefix As String = If(bulb.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.B2SCommand, "", If(bulb.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.Switch, "W", If(bulb.SnippitInfo.AutomaticRotationTriggerType = eRomIDType.Solenoid, "S", "L")))
         animationNode.SetAttribute("IDJoin", If(continuous, "", triggerPrefix & bulb.SnippitInfo.AutomaticRotationTriggerID.ToString()))
         animationNode.SetAttribute("StartAnimationAtBackglassStartup", If(continuous, "1", "0"))
         animationNode.SetAttribute("LightsStateAtAnimationStart", CInt(Animation.AnimationHeader.eLightsStateAtAnimationStart.InvolvedLightsOff).ToString())
@@ -3180,7 +3188,7 @@ Public Class Coding
         If Backglass.currentData.CommType = eCommType.B2S AndAlso bulb.B2SID > 0 Then
             idJoin = bulb.B2SID.ToString()
         ElseIf Backglass.currentData.CommType = eCommType.Rom AndAlso bulb.RomID > 0 AndAlso bulb.RomIDType <> eRomIDType.NotUsed Then
-            Dim prefix As String = If(bulb.RomIDType = eRomIDType.Solenoid, "s", If(bulb.RomIDType = eRomIDType.GIString, "g", "l"))
+            Dim prefix As String = If(bulb.RomIDType = eRomIDType.Switch, "w", If(bulb.RomIDType = eRomIDType.Solenoid, "s", If(bulb.RomIDType = eRomIDType.GIString, "g", "l")))
             idJoin = If(bulb.RomInverted, "i", String.Empty) & prefix & bulb.RomID.ToString()
         End If
 

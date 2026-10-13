@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Text
 
 Public Class formAnimations
@@ -23,6 +23,12 @@ Public Class formAnimations
     Private chkContinuousLoop As CheckBox = Nothing
     Private btnImportPictureSequence As Button = Nothing
     Private updatingContinuousLoop As Boolean = False
+    Private cmbJoinType As ComboBox
+    Private chkJoinInverted As CheckBox
+    Private updatingJoin As Boolean
+    Private ReadOnly joinPrefixes As String() = {"", "L", "S", "GI", "", "W"}
+    Private joinChoices As RadioButton()
+    Private lblJoinNumber As Label
 
     Public Sub BulbClicked(ByVal name As String, ByVal id As Integer)
         If currentAnimationStep IsNot Nothing AndAlso Not String.IsNullOrEmpty(name) Then
@@ -37,11 +43,155 @@ Public Class formAnimations
         ConfigureAnimationStepButtons()
         ConfigureContinuousLoopOption()
         ConfigurePictureSequenceImport()
+        ConfigureJoinType()
         RaiseEvent ResetAnimationLights(Me, New System.EventArgs)
         PopulateAnimations()
     End Sub
 
+    Private Sub ConfigureJoinType()
+        lblIDJoin.Visible = False
+        ' Keep the established type/serialization mapping, but give the visible
+        ' choices their own rows instead of sharing the preview button's column.
+        cmbJoinType = New ComboBox With {.Name = "cmbAnimationTriggerType", .DropDownStyle = ComboBoxStyle.DropDownList, .Visible = False}
+        cmbJoinType.Items.AddRange(New Object() {"B2S command", "ROM lamp", "ROM solenoid", "ROM GI", "Advanced / mixed", "SW"})
+
+        Dim sectionTop As Integer = Math.Max(cmbDualMode.Bottom, txtIDJoin.Bottom) + 8
+        Dim shift As Integer = 72
+        Dim settingsTop As Integer = txtInterval.Top
+        Dim oldBounds = Me.Controls.Cast(Of Control)().ToDictionary(Function(control) control, Function(control) control.Bounds)
+        Me.SuspendLayout()
+        Me.ClientSize = New Size(Me.ClientSize.Width, Me.ClientSize.Height + shift)
+        For Each item In oldBounds
+            Dim bounds As Rectangle = item.Value
+            If bounds.Top >= settingsTop Then bounds.Y += shift
+            item.Key.Bounds = bounds
+        Next
+        Dim triggerPanel As New Panel With {.Name = "pnlAnimationTrigger", .Location = New Point(txtName.Left, sectionTop), .Size = New Size(txtName.Width, 62)}
+        Dim choiceRow As New FlowLayoutPanel With {.Name = "pnlAnimationTriggerChoices", .Location = Point.Empty, .Size = New Size(triggerPanel.Width, 27), .WrapContents = False}
+        joinChoices = New RadioButton() {
+            New RadioButton With {.Name = "radAnimationB2SCommand", .Text = "B2S", .AutoSize = True},
+            New RadioButton With {.Name = "radAnimationLamp", .Text = "Lamp", .AutoSize = True},
+            New RadioButton With {.Name = "radAnimationSolenoid", .Text = "Solenoid", .AutoSize = True},
+            New RadioButton With {.Name = "radAnimationSW", .Text = "SW", .AutoSize = True}}
+        For index As Integer = 0 To joinChoices.Length - 1
+            Dim choiceIndex As Integer = If(index = 3, 5, index)
+            Dim choice As RadioButton = joinChoices(index)
+            choice.Margin = New Padding(0, 3, 12, 0)
+            AddHandler choice.CheckedChanged, Sub(sender, e)
+                                                 If Not updatingJoin AndAlso choice.Checked Then cmbJoinType.SelectedIndex = choiceIndex
+                                             End Sub
+            choiceRow.Controls.Add(choice)
+        Next
+        lblJoinNumber = New Label With {.Name = "lblAnimationCommandID", .Text = "Command ID:", .AutoSize = False, .Location = New Point(0, 33), .Size = New Size(96, 23), .TextAlign = ContentAlignment.MiddleLeft}
+        triggerPanel.Controls.AddRange(New Control() {choiceRow, lblJoinNumber})
+        triggerPanel.Controls.Add(txtIDJoin)
+        txtIDJoin.Anchor = AnchorStyles.Top Or AnchorStyles.Left
+        txtIDJoin.Bounds = New Rectangle(101, 32, 120, 23)
+        chkJoinInverted = New CheckBox With {.Name = "chkAnimationTriggerInverted", .Text = "Invert", .AutoSize = True, .Location = New Point(235, 34)}
+        triggerPanel.Controls.Add(chkJoinInverted)
+        Me.Controls.Add(triggerPanel)
+        ' The themed frame offsets new direct children in ControlAdded. These
+        ' coordinates already come from existing, offset editor controls.
+        triggerPanel.Location = New Point(txtName.Left, sectionTop)
+        cmbJoinType.SelectedIndex = 0
+        joinChoices(0).Checked = True
+        AddHandler cmbJoinType.SelectedIndexChanged, AddressOf JoinTypeChanged
+        AddHandler chkJoinInverted.CheckedChanged, AddressOf JoinTypeChanged
+        Me.ResumeLayout()
+        Me.MinimumSize = New Size(Me.MinimumSize.Width, Math.Max(Me.MinimumSize.Height, Me.Height))
+        For Each choice As RadioButton In joinChoices
+            animationButtonTips.SetToolTip(choice, "Choose the source, then enter its command ID below.")
+        Next
+        animationButtonTips.SetToolTip(txtIDJoin, "One ID, or comma-separated IDs of the selected type. Leave empty for no trigger.")
+        animationButtonTips.SetToolTip(chkJoinInverted, "Start when the signal is off; stop when it is on.")
+    End Sub
+
+    Private Sub DisplayJoin(ByVal value As String)
+        updatingJoin = True
+        Try
+            Dim values As New List(Of String)
+            Dim typeIndex As Integer = -1
+            Dim inverted As Boolean = False
+            For Each token As String In value.Split(","c)
+                If value.Length = 0 Then Exit For
+                Dim match = System.Text.RegularExpressions.Regex.Match(token.Trim(), "^(I?)(GI|G|L|S|W)?([0-9]+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+                If Not match.Success Then
+                    typeIndex = 4
+                    Exit For
+                End If
+                Dim prefix As String = match.Groups(2).Value.ToUpperInvariant()
+                Dim index As Integer = If(prefix = "W", 5, If(prefix = "L", 1, If(prefix = "S", 2, If(prefix = "G" OrElse prefix = "GI", 3, 0))))
+                Dim inverse As Boolean = match.Groups(1).Length > 0
+                If typeIndex >= 0 AndAlso (index <> typeIndex OrElse inverse <> inverted) Then
+                    typeIndex = 4
+                    Exit For
+                End If
+                typeIndex = index
+                inverted = inverse
+                values.Add(match.Groups(3).Value)
+            Next
+            cmbJoinType.SelectedIndex = If(typeIndex < 0, 0, typeIndex)
+            UpdateJoinChoices()
+            chkJoinInverted.Checked = inverted
+            chkJoinInverted.Enabled = (cmbJoinType.SelectedIndex <> 4)
+            txtIDJoin.Text = If(typeIndex = 4, value, String.Join(",", values))
+        Finally
+            updatingJoin = False
+        End Try
+    End Sub
+
+    Private Sub JoinTypeChanged(ByVal sender As Object, ByVal e As EventArgs)
+        If updatingJoin Then Return
+        UpdateJoinChoices()
+        chkJoinInverted.Enabled = (cmbJoinType.SelectedIndex <> 4)
+        StoreJoin()
+    End Sub
+
+    Private Sub UpdateJoinChoices()
+        Dim wasUpdating As Boolean = updatingJoin
+        updatingJoin = True
+        Try
+            For index As Integer = 0 To joinChoices.Length - 1
+                joinChoices(index).Checked = (cmbJoinType.SelectedIndex = If(index = 3, 5, index))
+            Next
+            lblJoinNumber.Text = If(cmbJoinType.SelectedIndex = 3, "GI ID (legacy):", If(cmbJoinType.SelectedIndex = 4, "Legacy joins:", "Command ID:"))
+        Finally
+            updatingJoin = wasUpdating
+        End Try
+    End Sub
+
+    Private Sub StoreJoin()
+        If updatingJoin OrElse currentAnimationHeader Is Nothing Then Return
+        Dim value As String = txtIDJoin.Text.Trim()
+        If value.Length > 0 AndAlso cmbJoinType.SelectedIndex <> 4 Then
+            Dim ids As New List(Of String)
+            For Each token As String In value.Split(","c)
+                Dim number As Integer
+                If Not Integer.TryParse(token.Trim(), number) OrElse number <= 0 Then
+                    animationButtonTips.Show("Enter positive command IDs separated by commas, or select Advanced for prefixed joins.", txtIDJoin, 0, txtIDJoin.Height, 4000)
+                    Return
+                End If
+                ids.Add(If(chkJoinInverted.Checked, "I", "") & joinPrefixes(cmbJoinType.SelectedIndex) & number.ToString())
+            Next
+            value = String.Join(",", ids)
+        End If
+        If currentAnimationHeader.IDJoin <> value Then
+            currentAnimationHeader.IDJoin = value
+            Backglass.currentData.IsDirty = True
+        End If
+    End Sub
+
     Private Sub ConfigurePictureSequenceImport()
+        Dim oldBounds = Me.Controls.Cast(Of Control)().ToDictionary(Function(control) control, Function(control) control.Bounds)
+        Dim settingsTop As Integer = B2SLine1.Top
+        Dim newRowHeight As Integer = btnExportAnimation.Height + 10
+        Me.SuspendLayout()
+        Me.ClientSize = New Size(Me.ClientSize.Width, Me.ClientSize.Height + newRowHeight)
+        For Each item In oldBounds
+            Dim bounds As Rectangle = item.Value
+            If bounds.Top >= settingsTop Then bounds.Y += newRowHeight
+            item.Key.Bounds = bounds
+        Next
         btnImportPictureSequence = New Button() With {
             .Name = "btnImportPictureSequence",
             .Text = "Import Picture Sequence...",
@@ -52,7 +202,9 @@ Public Class formAnimations
         }
         AddHandler btnImportPictureSequence.Click, AddressOf ImportPictureSequence_Click
         Me.Controls.Add(btnImportPictureSequence)
+        btnImportPictureSequence.Location = New Point(txtName.Left + (txtName.Width - btnImportPictureSequence.Width) \ 2, btnExportAnimation.Bottom + 5)
         btnImportPictureSequence.BringToFront()
+        Me.ResumeLayout()
         animationButtonTips.SetToolTip(btnImportPictureSequence, "Create a picture animation from ordered PNG frames or one animated GIF")
     End Sub
 
@@ -240,6 +392,7 @@ Public Class formAnimations
         }
         AddHandler chkContinuousLoop.CheckedChanged, AddressOf ContinuousLoop_CheckedChanged
         Me.Controls.Add(chkContinuousLoop)
+        chkContinuousLoop.Location = New Point(loopsRight - chkContinuousLoop.Width, txtLoops.Top)
         chkContinuousLoop.BringToFront()
         animationButtonTips.SetToolTip(chkContinuousLoop, "Loop continuously until the animation is stopped")
     End Sub
@@ -292,7 +445,7 @@ Public Class formAnimations
                 chkContinuousLoop.Checked = (.Loops = 0)
                 updatingContinuousLoop = False
                 txtLoops.Enabled = Not chkContinuousLoop.Checked
-                txtIDJoin.Text = .IDJoin
+                DisplayJoin(.IDJoin)
                 chkAutostart.Checked = .StartAnimationAtBackglassStartup
                 cmbLightsStateAtStart.SelectedIndex = .LightsStateAtAnimationStart - 1
                 If cmbLightsStateAtStart.SelectedIndex < 0 OrElse cmbLightsStateAtStart.SelectedIndex > cmbLightsStateAtStart.Items.Count - 1 Then cmbLightsStateAtStart.SelectedIndex = cmbLightsStateAtStart.Items.Count - 1
@@ -372,8 +525,7 @@ Public Class formAnimations
     End Sub
     Private Sub IDJoin_Validated(sender As System.Object, e As System.EventArgs) Handles txtIDJoin.Validated
         If currentAnimationHeader IsNot Nothing Then
-            currentAnimationHeader.IDJoin = txtIDJoin.Text.Trim
-            Backglass.currentData.IsDirty = True
+            StoreJoin()
         End If
     End Sub
     Private Sub Autostart_CheckedChanged(sender As System.Object, e As System.EventArgs) Handles chkAutostart.CheckedChanged

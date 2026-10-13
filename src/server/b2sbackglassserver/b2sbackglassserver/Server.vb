@@ -25,8 +25,8 @@ Public Class Server
     Private hasRunTable As Boolean = False
     Private Shared automaticUpdateCheckStarted As Boolean = False
     Private switchPulsePipeName As String = String.Empty
-    Private ReadOnly testerSwitchKnown(100) As Boolean
-    Private ReadOnly testerSwitchState(100) As Boolean
+    Private ReadOnly testerSwitchKnown(255) As Boolean
+    Private ReadOnly testerSwitchState(255) As Boolean
 
     Private tableHandle As Integer = 0
     Private tableCount As Integer = 0
@@ -230,7 +230,7 @@ Public Class Server
 
                 If B2SSettings.IsROMControlled AndAlso VPinMAME IsNot Nothing AndAlso
                    (B2SData.TesterSwitchesEnabled OrElse B2SData.UsedRomSwitchIDs.Count > 0) Then
-                    For switchID As Integer = 1 To 100
+                    For switchID As Integer = 1 To 255
                         UpdateTesterSwitchState(switchID, CBool(VPinMAME.Switch(switchID)))
                     Next
                 End If
@@ -264,9 +264,9 @@ Public Class Server
     End Sub
 
     Private Sub UpdateTesterSwitchState(ByVal switchID As Integer, ByVal state As Boolean)
-        If switchID < 1 OrElse switchID > 100 Then Return
+        If switchID < 1 OrElse switchID > 255 Then Return
         If Not B2SData.TesterSwitchesEnabled AndAlso B2SData.UsedRomSwitchIDs.Count = 0 Then Return
-        If Not testerSwitchKnown(switchID) AndAlso Not state Then
+        If Not testerSwitchKnown(switchID) AndAlso Not state AndAlso Not B2SData.UsedRomSwitchIDs.ContainsKey(switchID) Then
             testerSwitchKnown(switchID) = True
             Return
         End If

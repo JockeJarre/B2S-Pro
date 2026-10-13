@@ -183,10 +183,17 @@ Public Class formDesigner
         tsB2SDesigner.Items.Remove(tscmbIDFilter)
         tsB2SDesigner.Items.Remove(tslImage)
         tsB2SDesigner.Items.Remove(tscmbImage)
-        Dim lampFilterHost As ToolStripControlHost = CreateStackedToolbarField("Lamp filter", tscmbIDFilter, 108)
         Dim currentImageHost As ToolStripControlHost = CreateStackedToolbarField("Current image", tscmbImage, 108)
-        tsB2SDesigner.Items.Insert(stackedFieldIndex, lampFilterHost)
-        tsB2SDesigner.Items.Insert(stackedFieldIndex + 1, currentImageHost)
+        tsB2SDesigner.Items.Insert(stackedFieldIndex, currentImageHost)
+        ' Preserve the same combo and selection handler without occupying ribbon space.
+        Dim lampFilterMenu As New ToolStripMenuItem("Lamp filter")
+        Dim lampFilterHost As New ToolStripControlHost(tscmbIDFilter.ComboBox) With {
+            .AutoSize = False,
+            .Size = New Size(180, 26)
+        }
+        lampFilterMenu.DropDownItems.Add(lampFilterHost)
+        tsmiView.DropDownItems.Add(New ToolStripSeparator())
+        tsmiView.DropDownItems.Add(lampFilterMenu)
 
         ' Keep every command in its original location; only improve presentation.
         tsB2SDesigner.AutoSize = False
@@ -380,8 +387,13 @@ Public Class formDesigner
         ssB2SDesigner.Items.Remove(tsProgress)
         tsProgress.ToolTipText = "Save and export progress"
         tsProgress.Visible = True
-        tsB2SDesigner.Items.Insert(previewIndex + 4, tsProgress)
-        tsB2SDesigner.Items.Insert(previewIndex + 5, previewDividerAfter)
+        tsProgress.AutoSize = False
+        tsProgress.Size = New Size(220, 24)
+        tsProgress.Margin = New Padding(5, 3, 5, 3)
+        tsProgress.Alignment = ToolStripItemAlignment.Right
+        tsProgress.Overflow = ToolStripItemOverflow.Never
+        msB2SDesigner.Items.Add(tsProgress)
+        tsB2SDesigner.Items.Insert(previewIndex + 4, previewDividerAfter)
 
         ' Give every toolbar control breathing room.  This keeps the original
         ' controls and handlers intact while preventing the compressed look.
@@ -423,10 +435,14 @@ Public Class formDesigner
         msB2SDesigner.LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow
         msB2SDesigner.Stretch = True
         For Each menuItem As ToolStripItem In msB2SDesigner.Items
+            If menuItem Is tsProgress Then Continue For
             menuItem.Margin = New Padding(6, 0, 6, 0)
             menuItem.Padding = New Padding(4, 0, 4, 0)
         Next
         B2SProMainToolbar.ApplyMenu(msB2SDesigner)
+        msB2SDesigner.Padding = New Padding(4, 2, 4, 2)
+        tsProgress.Size = New Size(220, 24)
+        tsProgress.Margin = New Padding(5, 3, 5, 3)
 
         ssB2SDesigner.AutoSize = False
         ssB2SDesigner.Height = 31
@@ -578,7 +594,7 @@ Public Class formDesigner
             .Padding = New Padding(0, 0, 0, 1),
             .BackColor = Color.FromArgb(13, 16, 27)
         }
-        b2sProHeader.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 240.0F))
+        b2sProHeader.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 170.0F))
         b2sProHeader.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
         b2sProHeader.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 126.0F))
         b2sProHeader.RowStyles.Add(New RowStyle(SizeType.Absolute, 38.0F))
@@ -622,6 +638,13 @@ Public Class formDesigner
         tsbOpen.Available = False
         tsbSave.Available = False
         sep0.Available = False
+        ' Keep Undo/Redo in Edit and their existing shortcut handlers, not the ribbon.
+        tsbUndo.Available = False
+        tsbRedo.Available = False
+        sep1.Available = False
+        ' The zoom commands still use this selector as their internal state.
+        ' Remove only its toolbar presentation; do not dispose it or its handlers.
+        tsB2SDesigner.Items.Remove(tscmbZoomInPercent)
 
         Dim windowButtons As New FlowLayoutPanel With {
             .Name = "pnlMainWindowButtons",

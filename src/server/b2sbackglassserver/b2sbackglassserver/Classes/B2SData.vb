@@ -14,6 +14,14 @@ Public Partial Class B2SData
     Public Shared Property SwitchPulsePipeName As String = String.Empty
     Public Shared Property PhysicsLauncherPipeName As String = String.Empty
     Public Shared Property TesterSwitchesEnabled As Boolean = False
+    Public Shared Property UsedMotionPathSwitchIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property UsedMotionPathStopSwitchIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property UsedMotionPathResumeSwitchIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property UsedMotionPathRemoveSwitchIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property PivotSwitchIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property UsedAnimationSwitchIDs As New AnimationCollection()
+    Public Shared Property UsedRandomAnimationSwitchIDs As New AnimationCollection()
+    Private Shared ReadOnly PhysicsLauncherSwitchIDs As New Generic.SortedList(Of Integer, Generic.List(Of PhysicsBallState))()
     Public Shared Property UsedRomSwitchIDs As New Generic.SortedList(Of Integer, B2SBaseBox())
 #If B2S = "DLL" Then
     Private Shared switchPipeThread As Thread
@@ -400,7 +408,7 @@ Public Partial Class B2SData
             StartupPivotPictures.Add(pictureBox)
             Return
         End If
-        Dim targets As Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox)) = If(triggerType = 1, PivotSolenoidIDs, If(triggerType = 2, PivotLampIDs, PivotB2SIDs))
+        Dim targets As Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox)) = If(triggerType = 5, PivotSwitchIDs, If(triggerType = 1, PivotSolenoidIDs, If(triggerType = 2, PivotLampIDs, PivotB2SIDs)))
         If Not targets.ContainsKey(triggerID) Then targets.Add(triggerID, New Generic.List(Of B2SPictureBox)())
         targets(triggerID).Add(pictureBox)
     End Sub
@@ -469,7 +477,7 @@ Public Partial Class B2SData
         PhysicsBalls.Add(state)
         PhysicsBallStatesByPicture(pictureBox) = state
         If runtimeLauncher IsNot Nothing AndAlso runtimeLauncher.TriggerID > 0 Then
-            Dim routes = If(runtimeLauncher.TriggerType = 3, PhysicsLauncherB2SIDs, PhysicsLauncherSolenoidIDs)
+            Dim routes = If(runtimeLauncher.TriggerType = 5, PhysicsLauncherSwitchIDs, If(runtimeLauncher.TriggerType = 3, PhysicsLauncherB2SIDs, PhysicsLauncherSolenoidIDs))
             If Not routes.ContainsKey(runtimeLauncher.TriggerID) Then routes.Add(runtimeLauncher.TriggerID, New Generic.List(Of PhysicsBallState)())
             routes(runtimeLauncher.TriggerID).Add(state)
         End If
@@ -497,7 +505,7 @@ Public Partial Class B2SData
 
     Public Shared Function FirePhysicsLaunchers(ByVal triggerType As Integer, ByVal triggerID As Integer, ByVal value As Integer) As Boolean
         If value = 0 Then Return False
-        Dim routes = If(triggerType = 3, PhysicsLauncherB2SIDs, PhysicsLauncherSolenoidIDs)
+        Dim routes = If(triggerType = 5, PhysicsLauncherSwitchIDs, If(triggerType = 3, PhysicsLauncherB2SIDs, PhysicsLauncherSolenoidIDs))
         If Not routes.ContainsKey(triggerID) Then
 #If B2S = "DLL" Then
             SendPhysicsLauncherTrigger(triggerType, triggerID, value)
@@ -513,7 +521,7 @@ Public Partial Class B2SData
 
 
     Public Shared Function GetPhysicsLauncherIDs(ByVal triggerType As Integer) As Integer()
-        Return If(triggerType = 3, PhysicsLauncherB2SIDs.Keys.ToArray(), PhysicsLauncherSolenoidIDs.Keys.ToArray())
+        Return If(triggerType = 5, PhysicsLauncherSwitchIDs.Keys.ToArray(), If(triggerType = 3, PhysicsLauncherB2SIDs.Keys.ToArray(), PhysicsLauncherSolenoidIDs.Keys.ToArray()))
     End Function
 
     Private Shared Function FindPivotPicture(ByVal name As String) As B2SPictureBox
@@ -1220,6 +1228,8 @@ Public Partial Class B2SData
                 ElseIf value.RomIDType = B2SBaseBox.eRomIDType.Switch Then
                     If Not UsedRomSwitchIDs.ContainsKey(value.RomID) Then
                         UsedRomSwitchIDs.Add(value.RomID, New B2SBaseBox() {value})
+                    Else
+                        UsedRomSwitchIDs(value.RomID) = UsedRomSwitchIDs(value.RomID).Concat(New B2SBaseBox() {value}).ToArray()
                     End If
 #If B2S = "EXE" Then
                     AnnounceTesterSwitches()
@@ -1576,6 +1586,14 @@ Public Partial Class B2SData
         UsedRomSolenoidIDs4Authentic.Clear()
         UsedRomGIStringIDs4Authentic.Clear()
         UsedRomMechIDs4Authentic.Clear()
+        UsedMotionPathSwitchIDs.Clear()
+        UsedMotionPathStopSwitchIDs.Clear()
+        UsedMotionPathResumeSwitchIDs.Clear()
+        UsedMotionPathRemoveSwitchIDs.Clear()
+        PivotSwitchIDs.Clear()
+        UsedAnimationSwitchIDs.Clear()
+        UsedRandomAnimationSwitchIDs.Clear()
+        PhysicsLauncherSwitchIDs.Clear()
         UsedRomSwitchIDs.Clear()
         TesterSwitchesEnabled = False
         UsedRomLampIDs4Fantasy.Clear()
