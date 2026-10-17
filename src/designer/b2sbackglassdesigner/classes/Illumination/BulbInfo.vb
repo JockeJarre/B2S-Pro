@@ -153,7 +153,11 @@
         Public MotionPathLoop As Boolean = False
         Public MotionPathSwitchID As Integer = 0
         Public MotionPathStopSwitchID As Integer = 0
+        Public MotionPathStopLampID As Integer = 0
+        Public MotionPathStopSolenoidID As Integer = 0
         Public MotionPathResumeSwitchID As Integer = 0
+        Public MotionPathResumeLampID As Integer = 0
+        Public MotionPathResumeSolenoidID As Integer = 0
         Public MotionPathRemoveSwitchID As Integer = 0
         Public MotionPathSolenoidID As Integer = 0
         Public MotionPathLampID As Integer = 0

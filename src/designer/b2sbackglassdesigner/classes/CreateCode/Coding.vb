@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Text
 Imports System.Drawing.Drawing2D
 Imports System.Drawing.Text
@@ -784,7 +784,11 @@ Public Class Coding
                                     nodeBulb.SetAttribute("MotionPathLoop", If(.SnippitInfo.MotionPathLoop, "1", "0"))
                                     nodeBulb.SetAttribute("MotionPathSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathSwitchID)).ToString())
                                     nodeBulb.SetAttribute("MotionPathStopSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathStopSwitchID)).ToString())
+                                    nodeBulb.SetAttribute("MotionPathStopLampID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathStopLampID)).ToString())
+                                    nodeBulb.SetAttribute("MotionPathStopSolenoidID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathStopSolenoidID)).ToString())
                                     nodeBulb.SetAttribute("MotionPathResumeSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathResumeSwitchID)).ToString())
+                                    nodeBulb.SetAttribute("MotionPathResumeLampID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathResumeLampID)).ToString())
+                                    nodeBulb.SetAttribute("MotionPathResumeSolenoidID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathResumeSolenoidID)).ToString())
                                     nodeBulb.SetAttribute("MotionPathRemoveSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathRemoveSwitchID)).ToString())
                                     nodeBulb.SetAttribute("MotionPathSolenoidID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathSolenoidID)).ToString())
                                     nodeBulb.SetAttribute("MotionPathLampID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathLampID)).ToString())
@@ -1494,7 +1498,11 @@ Public Class Coding
                             End If
                             bulb.SnippitInfo.MotionPathSwitchID = ReadPivotInteger(innerNode, "MotionPathSwitchID", 0, 0, 255)
                             bulb.SnippitInfo.MotionPathStopSwitchID = ReadPivotInteger(innerNode, "MotionPathStopSwitchID", 0, 0, 255)
+                            bulb.SnippitInfo.MotionPathStopLampID = ReadPivotInteger(innerNode, "MotionPathStopLampID", 0, 0, 255)
+                            bulb.SnippitInfo.MotionPathStopSolenoidID = ReadPivotInteger(innerNode, "MotionPathStopSolenoidID", 0, 0, 255)
                             bulb.SnippitInfo.MotionPathResumeSwitchID = ReadPivotInteger(innerNode, "MotionPathResumeSwitchID", 0, 0, 255)
+                            bulb.SnippitInfo.MotionPathResumeLampID = ReadPivotInteger(innerNode, "MotionPathResumeLampID", 0, 0, 255)
+                            bulb.SnippitInfo.MotionPathResumeSolenoidID = ReadPivotInteger(innerNode, "MotionPathResumeSolenoidID", 0, 0, 255)
                             bulb.SnippitInfo.MotionPathRemoveSwitchID = ReadPivotInteger(innerNode, "MotionPathRemoveSwitchID", 0, 0, 255)
                             If innerNode.Attributes("MotionPathSolenoidID") IsNot Nothing Then
                                 Dim motionSolenoidID As Integer

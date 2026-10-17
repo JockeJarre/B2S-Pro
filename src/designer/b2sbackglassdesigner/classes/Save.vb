@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Text
 Imports System.IO
 Imports System.Linq
@@ -405,7 +405,11 @@ Public Class Save
                         bulb.SnippitInfo.MotionPathLoop = (ReadIntAttribute(innerNode, "MotionPathLoop", 0, 0, 1) = 1)
                         bulb.SnippitInfo.MotionPathSwitchID = ReadIntAttribute(innerNode, "MotionPathSwitchID", 0, 0, 255)
                         bulb.SnippitInfo.MotionPathStopSwitchID = ReadIntAttribute(innerNode, "MotionPathStopSwitchID", 0, 0, 255)
+                        bulb.SnippitInfo.MotionPathStopLampID = ReadIntAttribute(innerNode, "MotionPathStopLampID", 0, 0, 255)
+                        bulb.SnippitInfo.MotionPathStopSolenoidID = ReadIntAttribute(innerNode, "MotionPathStopSolenoidID", 0, 0, 255)
                         bulb.SnippitInfo.MotionPathResumeSwitchID = ReadIntAttribute(innerNode, "MotionPathResumeSwitchID", 0, 0, 255)
+                        bulb.SnippitInfo.MotionPathResumeLampID = ReadIntAttribute(innerNode, "MotionPathResumeLampID", 0, 0, 255)
+                        bulb.SnippitInfo.MotionPathResumeSolenoidID = ReadIntAttribute(innerNode, "MotionPathResumeSolenoidID", 0, 0, 255)
                         bulb.SnippitInfo.MotionPathRemoveSwitchID = ReadIntAttribute(innerNode, "MotionPathRemoveSwitchID", 0, 0, 255)
                         bulb.SnippitInfo.MotionPathSolenoidID = ReadIntAttribute(innerNode, "MotionPathSolenoidID", 0, 0, 255)
                         bulb.SnippitInfo.MotionPathLampID = ReadIntAttribute(innerNode, "MotionPathLampID", 0, 0, 255)
@@ -925,7 +929,11 @@ Public Class Save
                                 nodeBulb.SetAttribute("MotionPathLoop", If(.SnippitInfo.MotionPathLoop, "1", "0"))
                                 nodeBulb.SetAttribute("MotionPathSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathSwitchID)).ToString())
                                 nodeBulb.SetAttribute("MotionPathStopSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathStopSwitchID)).ToString())
+                                nodeBulb.SetAttribute("MotionPathStopLampID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathStopLampID)).ToString())
+                                nodeBulb.SetAttribute("MotionPathStopSolenoidID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathStopSolenoidID)).ToString())
                                 nodeBulb.SetAttribute("MotionPathResumeSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathResumeSwitchID)).ToString())
+                                nodeBulb.SetAttribute("MotionPathResumeLampID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathResumeLampID)).ToString())
+                                nodeBulb.SetAttribute("MotionPathResumeSolenoidID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathResumeSolenoidID)).ToString())
                                 nodeBulb.SetAttribute("MotionPathRemoveSwitchID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathRemoveSwitchID)).ToString())
                                 nodeBulb.SetAttribute("MotionPathSolenoidID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathSolenoidID)).ToString())
                                 nodeBulb.SetAttribute("MotionPathLampID", Math.Max(0, Math.Min(255, .SnippitInfo.MotionPathLampID)).ToString())

@@ -5,17 +5,17 @@ Binary Index=Yes
 Compatibility=1.1
 Compiled file=B2SProHelp.chm
 Contents file=B2SBackglassDesigner.hhc
-Default topic=B2SPro.htm
+Default topic=introduction.htm
 Error log file=_errorlog.txt
 Index file=B2SBackglassDesigner.hhk
-Title=B2S Pro Help
+Title=B2S Help
 Full-text search=Yes
 Display compile progress=Yes
 Display compile notes=Yes
 Default window=main
 
 [WINDOWS]
-main=,"B2SBackglassDesigner.hhc","B2SBackglassDesigner.hhk","B2SPro.htm","B2SPro.htm",,,,,0x23520,222,0x1046,[10,10,1000,720],0xB0000,,,,,0,
+main=,"B2SBackglassDesigner.hhc","B2SBackglassDesigner.hhk","introduction.htm","introduction.htm",,,,,0x23520,222,0x1046,[10,10,780,560],0xB0000,,,,,0,
 
 [FILES]
 ab2sbackglassfromscratch.htm
@@ -26,7 +26,6 @@ ananimation.htm
 anemororiginaldirectb2sbackglass.htm
 b2sbackglassesforalltypeoftables.htm
 backglass.htm
-B2SPro.htm
 choosereelsorleds.htm
 connectbackglassandrom.htm
 copyright.htm
@@ -37,7 +36,6 @@ css\base.css
 css\hnd.css
 css\ielte8.css
 css\reset.css
-css\b2spro.css
 designingthebackglassofbaseball1.htm
 designingthebackglassofbaseballp.htm
 dosomevpscriptcodingforbaseball.htm
@@ -56,24 +54,6 @@ img\header-bg.png
 importthebackgroundimage.htm
 introduction.htm
 js\chmRelative.js
-pro-images\b2s-pro-logo.png
-pro-images\image-menu.png
-pro-images\layers.png
-pro-images\current-ui\flasher-editor.png
-pro-images\current-ui\id-tester.png
-pro-images\current-ui\lamp-editor.png
-pro-images\current-ui\motion-path.png
-pro-images\current-ui\physics-boundaries.png
-pro-images\current-ui\physics-launcher.png
-pro-images\current-ui\picture-animation.png
-pro-images\current-ui\pivot-animation.png
-pro-images\current-ui\quick-selection.png
-pro-images\current-ui\reels-and-leds.png
-pro-images\current-ui\reel-3d-comparison.png
-pro-images\current-ui\save-export-test.png
-pro-images\current-ui\score-rotation-handles.png
-pro-images\current-ui\snippet-settings.png
-pro-images\current-ui\trough-animation.png
 lib\Animations01.jpg
 lib\Animations02.jpg
 lib\Animations03.jpg

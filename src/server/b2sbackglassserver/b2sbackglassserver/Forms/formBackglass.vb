@@ -1,4 +1,4 @@
-#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
+﻿#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
 Imports System.Drawing
 Imports System.Drawing.Imaging
 Imports System.IO
@@ -54,6 +54,27 @@ Public Class formBackglass
     Private ReadOnly switchTriggerKnown(255) As Boolean
     Private ReadOnly switchTriggerState(255) As Boolean
     Private ReadOnly switchRandomRunning As New Generic.Dictionary(Of Integer, String)()
+
+    Private Sub RegisterMotionControlRoutes()
+        For Each picture As B2SPictureBox In B2SData.Illuminations.Values.Concat(B2SData.DMDIlluminations.Values)
+            If picture.MotionPathPoints.Count >= 2 AndAlso picture.MotionPathStopLampID > 0 Then
+                If Not B2SData.UsedMotionPathStopLampIDs.ContainsKey(picture.MotionPathStopLampID) Then B2SData.UsedMotionPathStopLampIDs.Add(picture.MotionPathStopLampID, New Generic.List(Of B2SPictureBox)())
+                B2SData.UsedMotionPathStopLampIDs(picture.MotionPathStopLampID).Add(picture)
+            End If
+            If picture.MotionPathPoints.Count >= 2 AndAlso picture.MotionPathResumeLampID > 0 Then
+                If Not B2SData.UsedMotionPathResumeLampIDs.ContainsKey(picture.MotionPathResumeLampID) Then B2SData.UsedMotionPathResumeLampIDs.Add(picture.MotionPathResumeLampID, New Generic.List(Of B2SPictureBox)())
+                B2SData.UsedMotionPathResumeLampIDs(picture.MotionPathResumeLampID).Add(picture)
+            End If
+            If picture.MotionPathPoints.Count >= 2 AndAlso picture.MotionPathStopSolenoidID > 0 Then
+                If Not B2SData.UsedMotionPathStopSolenoidIDs.ContainsKey(picture.MotionPathStopSolenoidID) Then B2SData.UsedMotionPathStopSolenoidIDs.Add(picture.MotionPathStopSolenoidID, New Generic.List(Of B2SPictureBox)())
+                B2SData.UsedMotionPathStopSolenoidIDs(picture.MotionPathStopSolenoidID).Add(picture)
+            End If
+            If picture.MotionPathPoints.Count >= 2 AndAlso picture.MotionPathResumeSolenoidID > 0 Then
+                If Not B2SData.UsedMotionPathResumeSolenoidIDs.ContainsKey(picture.MotionPathResumeSolenoidID) Then B2SData.UsedMotionPathResumeSolenoidIDs.Add(picture.MotionPathResumeSolenoidID, New Generic.List(Of B2SPictureBox)())
+                B2SData.UsedMotionPathResumeSolenoidIDs(picture.MotionPathResumeSolenoidID).Add(picture)
+            End If
+        Next
+    End Sub
 
     Private Sub RegisterSwitchTriggerRoutes()
         Array.Clear(switchTriggerKnown, 0, switchTriggerKnown.Length)
@@ -1413,7 +1434,7 @@ Public Class formBackglass
 
         Dim lampsData As String = String.Empty
 
-        If B2SData.UseRomLamps OrElse B2SData.UseAnimationLamps OrElse B2SData.UsedMotionPathLampIDs.Count > 0 OrElse B2SData.UsedMotionPathRemoveLampIDs.Count > 0 OrElse B2SData.PivotLampIDs.Count > 0 Then
+        If B2SData.UseRomLamps OrElse B2SData.UseAnimationLamps OrElse B2SData.UsedMotionPathLampIDs.Count > 0 OrElse B2SData.UsedMotionPathRemoveLampIDs.Count > 0 OrElse B2SData.UsedMotionPathStopLampIDs.Count > 0 OrElse B2SData.UsedMotionPathResumeLampIDs.Count > 0 OrElse B2SData.GetPhysicsLauncherIDs(2).Length > 0 OrElse B2SData.PivotLampIDs.Count > 0 Then
             lampsData = regkey.GetValue("B2SLamps", New String("0", 401))
             'If B2SSettings.IsROMControlled AndAlso lampsData.Contains("2") Then
             '    regkey.SetValue("B2SLamps", lampsData.Replace("2", "0"))
@@ -1427,7 +1448,7 @@ Public Class formBackglass
 
         Dim solenoidsData As String = String.Empty
 
-        If B2SData.UseRomSolenoids OrElse B2SData.UseAnimationSolenoids OrElse B2SData.UsedMotionPathSolenoidIDs.Count > 0 OrElse B2SData.UsedMotionPathRemoveSolenoidIDs.Count > 0 OrElse B2SData.PivotSolenoidIDs.Count > 0 Then
+        If B2SData.UseRomSolenoids OrElse B2SData.UseAnimationSolenoids OrElse B2SData.UsedMotionPathSolenoidIDs.Count > 0 OrElse B2SData.UsedMotionPathRemoveSolenoidIDs.Count > 0 OrElse B2SData.UsedMotionPathStopSolenoidIDs.Count > 0 OrElse B2SData.UsedMotionPathResumeSolenoidIDs.Count > 0 OrElse B2SData.PivotSolenoidIDs.Count > 0 Then
             solenoidsData = regkey.GetValue("B2SSolenoids", New String("0", 251))
             If B2SSettings.IsROMControlled AndAlso solenoidsData.Contains("2") Then
                 regkey.SetValue("B2SSolenoids", solenoidsData.Replace("2", "0"))
@@ -1646,6 +1667,9 @@ Public Class formBackglass
 
         Dim pivotLampIDs As New Generic.HashSet(Of Integer)(B2SData.UsedMotionPathLampIDs.Keys)
         pivotLampIDs.UnionWith(B2SData.UsedMotionPathRemoveLampIDs.Keys)
+        pivotLampIDs.UnionWith(B2SData.UsedMotionPathStopLampIDs.Keys)
+        pivotLampIDs.UnionWith(B2SData.UsedMotionPathResumeLampIDs.Keys)
+        pivotLampIDs.UnionWith(B2SData.GetPhysicsLauncherIDs(2))
         pivotLampIDs.UnionWith(B2SData.PivotLampIDs.Keys)
         For Each lampid As Integer In pivotLampIDs
             If lampid < lampsData.Length AndAlso lampid < motionPathLamps.Length Then
@@ -1653,9 +1677,20 @@ Public Class formBackglass
                 If motionPathLamps(lampid) <> currentvalue Then
                     motionPathLamps(lampid) = currentvalue
                     B2SData.SetPivotTriggerState(B2SData.PivotLampIDs, lampid, currentvalue)
+                    B2SData.FirePhysicsLaunchers(2, lampid, currentvalue)
                     If currentvalue <> 0 Then
                         If B2SData.UsedMotionPathLampIDs.ContainsKey(lampid) Then B2SData.StartMotionPaths(B2SData.UsedMotionPathLampIDs(lampid))
                         If B2SData.UsedMotionPathRemoveLampIDs.ContainsKey(lampid) Then B2SData.RemoveMotionPaths(B2SData.UsedMotionPathRemoveLampIDs(lampid))
+                        If B2SData.UsedMotionPathStopLampIDs.ContainsKey(lampid) Then
+                            For Each picture As B2SPictureBox In B2SData.UsedMotionPathStopLampIDs(lampid)
+                                picture.StopMotionPath()
+                            Next
+                        End If
+                        If B2SData.UsedMotionPathResumeLampIDs.ContainsKey(lampid) Then
+                            For Each picture As B2SPictureBox In B2SData.UsedMotionPathResumeLampIDs(lampid)
+                                picture.ResumeMotionPath()
+                            Next
+                        End If
                     End If
                 End If
             End If
@@ -1779,6 +1814,8 @@ Public Class formBackglass
 
         Dim pivotSolenoidIDs As New Generic.HashSet(Of Integer)(B2SData.UsedMotionPathSolenoidIDs.Keys)
         pivotSolenoidIDs.UnionWith(B2SData.UsedMotionPathRemoveSolenoidIDs.Keys)
+        pivotSolenoidIDs.UnionWith(B2SData.UsedMotionPathStopSolenoidIDs.Keys)
+        pivotSolenoidIDs.UnionWith(B2SData.UsedMotionPathResumeSolenoidIDs.Keys)
         pivotSolenoidIDs.UnionWith(B2SData.PivotSolenoidIDs.Keys)
         pivotSolenoidIDs.UnionWith(B2SData.GetPhysicsLauncherIDs(1))
         For Each solenoidid As Integer In pivotSolenoidIDs
@@ -1791,6 +1828,16 @@ Public Class formBackglass
                     If currentvalue <> 0 Then
                         If B2SData.UsedMotionPathSolenoidIDs.ContainsKey(solenoidid) Then B2SData.StartMotionPaths(B2SData.UsedMotionPathSolenoidIDs(solenoidid))
                         If B2SData.UsedMotionPathRemoveSolenoidIDs.ContainsKey(solenoidid) Then B2SData.RemoveMotionPaths(B2SData.UsedMotionPathRemoveSolenoidIDs(solenoidid))
+                        If B2SData.UsedMotionPathStopSolenoidIDs.ContainsKey(solenoidid) Then
+                            For Each picture As B2SPictureBox In B2SData.UsedMotionPathStopSolenoidIDs(solenoidid)
+                                picture.StopMotionPath()
+                            Next
+                        End If
+                        If B2SData.UsedMotionPathResumeSolenoidIDs.ContainsKey(solenoidid) Then
+                            For Each picture As B2SPictureBox In B2SData.UsedMotionPathResumeSolenoidIDs(solenoidid)
+                                picture.ResumeMotionPath()
+                            Next
+                        End If
                     End If
                 End If
             End If
@@ -3131,7 +3178,11 @@ Public Class formBackglass
                         picbox.MotionPathLoop = motionPathLoop
                         If innerNode.Attributes("MotionPathSwitchID") IsNot Nothing Then picbox.MotionPathSwitchID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathSwitchID").InnerText)))
                         If innerNode.Attributes("MotionPathStopSwitchID") IsNot Nothing Then picbox.MotionPathStopSwitchID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathStopSwitchID").InnerText)))
+                        If innerNode.Attributes("MotionPathStopLampID") IsNot Nothing Then picbox.MotionPathStopLampID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathStopLampID").InnerText)))
+                        If innerNode.Attributes("MotionPathStopSolenoidID") IsNot Nothing Then picbox.MotionPathStopSolenoidID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathStopSolenoidID").InnerText)))
                         If innerNode.Attributes("MotionPathResumeSwitchID") IsNot Nothing Then picbox.MotionPathResumeSwitchID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathResumeSwitchID").InnerText)))
+                        If innerNode.Attributes("MotionPathResumeLampID") IsNot Nothing Then picbox.MotionPathResumeLampID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathResumeLampID").InnerText)))
+                        If innerNode.Attributes("MotionPathResumeSolenoidID") IsNot Nothing Then picbox.MotionPathResumeSolenoidID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathResumeSolenoidID").InnerText)))
                         If innerNode.Attributes("MotionPathRemoveSwitchID") IsNot Nothing Then picbox.MotionPathRemoveSwitchID = Math.Max(0, Math.Min(255, CInt(innerNode.Attributes("MotionPathRemoveSwitchID").InnerText)))
                         picbox.MotionPathSolenoidID = motionPathSolenoidID
                         picbox.MotionPathLampID = motionPathLampID
@@ -4078,6 +4129,7 @@ Public Class formBackglass
 #End If
             End If
 
+            RegisterMotionControlRoutes()
             RegisterSwitchTriggerRoutes()
             ' set info flags to dirty to load them
 #If B2S = "DLL" Then

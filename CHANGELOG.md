@@ -4,6 +4,13 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 
 ## 1.0.7 / Server 3.0.6 — 2026-10-11
 
+### October 17 update — versions unchanged
+
+- Refresh Create Backglass, Preview/Test, and Import DMD command availability when opening or switching projects, without first opening their menus. Preserve the existing destination and DMD restrictions.
+- Embed the illustrated B2S Pro guide, including the revised examples and screenshots, with no separate help download. Keep the original B2S Help available as a separate choice and remove the superseded Pro introduction from that legacy guide.
+- Add Lamp to physics launcher triggers and Lamp/Solenoid to motion-path Stop and Resume. Preserve those values through project saves, exported backglasses, trough editing, and both Server runtimes.
+- Preserve existing B2S/SW routing and the separate legacy and one-image animation formats.
+
 ### October 13 update — versions unchanged
 
 - Keep the full toolbar accessible with a smaller logo, a permanent progress bar in the upper menu strip, and Lamp filter under View. Remove the visible Undo/Redo buttons and zoom percentage box while preserving their existing commands and internal zoom state.

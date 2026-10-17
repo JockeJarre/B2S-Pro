@@ -1,4 +1,4 @@
-#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
+﻿#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
 Imports System
 Imports System.Collections.Generic
 Imports System.Drawing
@@ -312,6 +312,10 @@ Public Partial Class B2SData
     Public Shared Property UsedMotionPathSolenoidIDs() As Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox)) = New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
     Public Shared Property UsedMotionPathLampIDs() As Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox)) = New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
     Public Shared Property UsedMotionPathB2SIDs() As Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox)) = New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property UsedMotionPathStopLampIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property UsedMotionPathResumeLampIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property UsedMotionPathStopSolenoidIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
+    Public Shared Property UsedMotionPathResumeSolenoidIDs As New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
     Public Shared Property UsedMotionPathStopB2SIDs() As Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox)) = New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
     Public Shared Property UsedMotionPathResumeB2SIDs() As Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox)) = New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
     Public Shared Property UsedMotionPathRemoveSolenoidIDs() As Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox)) = New Generic.SortedList(Of Integer, Generic.List(Of B2SPictureBox))()
@@ -391,6 +395,7 @@ Public Partial Class B2SData
     Friend Shared Function IsPhysicsPivot(ByVal pivot As B2SPictureBox) As Boolean
         Return PhysicsBalls.Any(Function(state) state.PhysicsPivot Is pivot)
     End Function
+    Private Shared ReadOnly PhysicsLauncherLampIDs As New Generic.SortedList(Of Integer, Generic.List(Of PhysicsBallState))()
     Private Shared ReadOnly PhysicsLauncherSolenoidIDs As New Generic.SortedList(Of Integer, Generic.List(Of PhysicsBallState))()
     Private Shared ReadOnly PhysicsLauncherB2SIDs As New Generic.SortedList(Of Integer, Generic.List(Of PhysicsBallState))()
 
@@ -477,7 +482,7 @@ Public Partial Class B2SData
         PhysicsBalls.Add(state)
         PhysicsBallStatesByPicture(pictureBox) = state
         If runtimeLauncher IsNot Nothing AndAlso runtimeLauncher.TriggerID > 0 Then
-            Dim routes = If(runtimeLauncher.TriggerType = 5, PhysicsLauncherSwitchIDs, If(runtimeLauncher.TriggerType = 3, PhysicsLauncherB2SIDs, PhysicsLauncherSolenoidIDs))
+            Dim routes = If(runtimeLauncher.TriggerType = 2, PhysicsLauncherLampIDs, If(runtimeLauncher.TriggerType = 5, PhysicsLauncherSwitchIDs, If(runtimeLauncher.TriggerType = 3, PhysicsLauncherB2SIDs, PhysicsLauncherSolenoidIDs)))
             If Not routes.ContainsKey(runtimeLauncher.TriggerID) Then routes.Add(runtimeLauncher.TriggerID, New Generic.List(Of PhysicsBallState)())
             routes(runtimeLauncher.TriggerID).Add(state)
         End If
@@ -505,7 +510,7 @@ Public Partial Class B2SData
 
     Public Shared Function FirePhysicsLaunchers(ByVal triggerType As Integer, ByVal triggerID As Integer, ByVal value As Integer) As Boolean
         If value = 0 Then Return False
-        Dim routes = If(triggerType = 5, PhysicsLauncherSwitchIDs, If(triggerType = 3, PhysicsLauncherB2SIDs, PhysicsLauncherSolenoidIDs))
+        Dim routes = If(triggerType = 2, PhysicsLauncherLampIDs, If(triggerType = 5, PhysicsLauncherSwitchIDs, If(triggerType = 3, PhysicsLauncherB2SIDs, PhysicsLauncherSolenoidIDs)))
         If Not routes.ContainsKey(triggerID) Then
 #If B2S = "DLL" Then
             SendPhysicsLauncherTrigger(triggerType, triggerID, value)
@@ -521,7 +526,7 @@ Public Partial Class B2SData
 
 
     Public Shared Function GetPhysicsLauncherIDs(ByVal triggerType As Integer) As Integer()
-        Return If(triggerType = 5, PhysicsLauncherSwitchIDs.Keys.ToArray(), If(triggerType = 3, PhysicsLauncherB2SIDs.Keys.ToArray(), PhysicsLauncherSolenoidIDs.Keys.ToArray()))
+        Return If(triggerType = 2, PhysicsLauncherLampIDs.Keys.ToArray(), If(triggerType = 5, PhysicsLauncherSwitchIDs.Keys.ToArray(), If(triggerType = 3, PhysicsLauncherB2SIDs.Keys.ToArray(), PhysicsLauncherSolenoidIDs.Keys.ToArray())))
     End Function
 
     Private Shared Function FindPivotPicture(ByVal name As String) As B2SPictureBox
@@ -1362,7 +1367,7 @@ Public Partial Class B2SData
             If IsLampsInfoDirty Then
                 IsLampsInfoDirty = False
                 ret = (IsBackglassRunning AndAlso
-                       (IsBackglassStartedAsEXE OrElse UseRomLamps OrElse UsedMotionPathLampIDs.Count > 0 OrElse UsedMotionPathRemoveLampIDs.Count > 0 OrElse PivotLampIDs.Count > 0 OrElse UseAnimationLamps OrElse TestMode OrElse B2SSettings.IsLampsStateLogOn OrElse B2SStatistics.LogStatistics) AndAlso
+                       (IsBackglassStartedAsEXE OrElse UseRomLamps OrElse UsedMotionPathLampIDs.Count > 0 OrElse UsedMotionPathRemoveLampIDs.Count > 0 OrElse UsedMotionPathStopLampIDs.Count > 0 OrElse UsedMotionPathResumeLampIDs.Count > 0 OrElse PhysicsLauncherLampIDs.Count > 0 OrElse PivotLampIDs.Count > 0 OrElse UseAnimationLamps OrElse TestMode OrElse B2SSettings.IsLampsStateLogOn OrElse B2SStatistics.LogStatistics) AndAlso
                        Not B2SSettings.AllOff AndAlso Not B2SSettings.LampsOff)
             End If
             Return ret
@@ -1374,7 +1379,7 @@ Public Partial Class B2SData
             If IsSolenoidsInfoDirty Then
                 IsSolenoidsInfoDirty = False
                 ret = (IsBackglassRunning AndAlso
-                       (IsBackglassStartedAsEXE OrElse UseRomSolenoids OrElse UsedMotionPathSolenoidIDs.Count > 0 OrElse UsedMotionPathRemoveSolenoidIDs.Count > 0 OrElse PivotSolenoidIDs.Count > 0 OrElse UseAnimationSolenoids OrElse TestMode OrElse B2SSettings.IsSolenoidsStateLogOn OrElse B2SStatistics.LogStatistics) AndAlso
+                       (IsBackglassStartedAsEXE OrElse UseRomSolenoids OrElse UsedMotionPathSolenoidIDs.Count > 0 OrElse UsedMotionPathRemoveSolenoidIDs.Count > 0 OrElse UsedMotionPathStopSolenoidIDs.Count > 0 OrElse UsedMotionPathResumeSolenoidIDs.Count > 0 OrElse PivotSolenoidIDs.Count > 0 OrElse UseAnimationSolenoids OrElse TestMode OrElse B2SSettings.IsSolenoidsStateLogOn OrElse B2SStatistics.LogStatistics) AndAlso
                        Not B2SSettings.AllOff AndAlso Not B2SSettings.SolenoidsOff)
             End If
             Return ret
@@ -1601,6 +1606,10 @@ Public Partial Class B2SData
         UsedMotionPathSolenoidIDs.Clear()
         UsedMotionPathLampIDs.Clear()
         UsedMotionPathB2SIDs.Clear()
+        UsedMotionPathStopLampIDs.Clear()
+        UsedMotionPathResumeLampIDs.Clear()
+        UsedMotionPathStopSolenoidIDs.Clear()
+        UsedMotionPathResumeSolenoidIDs.Clear()
         UsedMotionPathStopB2SIDs.Clear()
         UsedMotionPathResumeB2SIDs.Clear()
         UsedMotionPathRemoveSolenoidIDs.Clear()
@@ -1627,6 +1636,7 @@ Public Partial Class B2SData
         Next
         PhysicsBalls.Clear()
         PhysicsBallStatesByPicture.Clear()
+        PhysicsLauncherLampIDs.Clear()
         PhysicsLauncherSolenoidIDs.Clear()
         PhysicsLauncherB2SIDs.Clear()
         UsedRomGIStringIDs4Fantasy.Clear()

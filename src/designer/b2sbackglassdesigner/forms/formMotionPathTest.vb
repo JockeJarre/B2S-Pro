@@ -1,4 +1,4 @@
-Imports System.Drawing.Drawing2D
+﻿Imports System.Drawing.Drawing2D
 Imports System.Drawing.Imaging
 Imports System.Runtime.InteropServices
 Imports System.Windows.Forms
@@ -107,21 +107,21 @@ Public Class formMotionPathTest
         AddHandler triggerTypeBox.SelectedIndexChanged, Sub() triggerIDBox.Enabled = (triggerTypeBox.SelectedIndex > 0)
         Dim stopLabel As New Label With {.Text = "Stop B2S ID:", .ForeColor = Color.White, .AutoSize = True, .Margin = New Padding(10, 8, 3, 0)}
         stopTypeBox.DropDownStyle = ComboBoxStyle.DropDownList
-        stopTypeBox.Items.AddRange(New Object() {"B2S", "SW"})
-        stopTypeBox.SelectedIndex = If(snippet.SnippitInfo.MotionPathStopSwitchID > 0, 1, 0)
+        stopTypeBox.Items.AddRange(New Object() {"B2S", "SW", "Lamp", "Solenoid"})
+        stopTypeBox.SelectedIndex = If(snippet.SnippitInfo.MotionPathStopSwitchID > 0, 1, If(snippet.SnippitInfo.MotionPathStopLampID > 0, 2, If(snippet.SnippitInfo.MotionPathStopSolenoidID > 0, 3, 0)))
         resumeTypeBox.DropDownStyle = ComboBoxStyle.DropDownList
-        resumeTypeBox.Items.AddRange(New Object() {"B2S", "SW"})
-        resumeTypeBox.SelectedIndex = If(snippet.SnippitInfo.MotionPathResumeSwitchID > 0, 1, 0)
+        resumeTypeBox.Items.AddRange(New Object() {"B2S", "SW", "Lamp", "Solenoid"})
+        resumeTypeBox.SelectedIndex = If(snippet.SnippitInfo.MotionPathResumeSwitchID > 0, 1, If(snippet.SnippitInfo.MotionPathResumeLampID > 0, 2, If(snippet.SnippitInfo.MotionPathResumeSolenoidID > 0, 3, 0)))
         stopLabel.Text = "Stop trigger type / ID:"
         stopIDBox.Minimum = 0
         stopIDBox.Maximum = 250
-        stopIDBox.Value = Math.Max(0, Math.Min(250, If(snippet.SnippitInfo.MotionPathStopSwitchID > 0, snippet.SnippitInfo.MotionPathStopSwitchID, snippet.SnippitInfo.MotionPathStopB2SID)))
+        stopIDBox.Value = Math.Max(0, Math.Min(250, If(snippet.SnippitInfo.MotionPathStopSwitchID > 0, snippet.SnippitInfo.MotionPathStopSwitchID, If(snippet.SnippitInfo.MotionPathStopLampID > 0, snippet.SnippitInfo.MotionPathStopLampID, If(snippet.SnippitInfo.MotionPathStopSolenoidID > 0, snippet.SnippitInfo.MotionPathStopSolenoidID, snippet.SnippitInfo.MotionPathStopB2SID)))))
         stopIDBox.Width = 48
         stopIDBox.Margin = New Padding(0, 4, 3, 0)
         Dim resumeLabel As New Label With {.Text = "Resume trigger type / ID:", .ForeColor = Color.White, .AutoSize = True, .Margin = New Padding(8, 8, 3, 0)}
         resumeIDBox.Minimum = 0
         resumeIDBox.Maximum = 250
-        resumeIDBox.Value = Math.Max(0, Math.Min(250, If(snippet.SnippitInfo.MotionPathResumeSwitchID > 0, snippet.SnippitInfo.MotionPathResumeSwitchID, snippet.SnippitInfo.MotionPathResumeB2SID)))
+        resumeIDBox.Value = Math.Max(0, Math.Min(250, If(snippet.SnippitInfo.MotionPathResumeSwitchID > 0, snippet.SnippitInfo.MotionPathResumeSwitchID, If(snippet.SnippitInfo.MotionPathResumeLampID > 0, snippet.SnippitInfo.MotionPathResumeLampID, If(snippet.SnippitInfo.MotionPathResumeSolenoidID > 0, snippet.SnippitInfo.MotionPathResumeSolenoidID, snippet.SnippitInfo.MotionPathResumeB2SID)))))
         resumeIDBox.Width = 48
         resumeIDBox.Margin = New Padding(0, 4, 3, 0)
         queueTriggersCheckBox.Text = "Queue repeated triggers"
@@ -298,6 +298,30 @@ Public Class formMotionPathTest
         End Get
     End Property
 
+    Public ReadOnly Property ResultStopLampID As Integer
+        Get
+            Return If(stopTypeBox.SelectedIndex = 2, CInt(stopIDBox.Value), 0)
+        End Get
+    End Property
+
+    Public ReadOnly Property ResultStopSolenoidID As Integer
+        Get
+            Return If(stopTypeBox.SelectedIndex = 3, CInt(stopIDBox.Value), 0)
+        End Get
+    End Property
+
+    Public ReadOnly Property ResultResumeLampID As Integer
+        Get
+            Return If(resumeTypeBox.SelectedIndex = 2, CInt(resumeIDBox.Value), 0)
+        End Get
+    End Property
+
+    Public ReadOnly Property ResultResumeSolenoidID As Integer
+        Get
+            Return If(resumeTypeBox.SelectedIndex = 3, CInt(resumeIDBox.Value), 0)
+        End Get
+    End Property
+
     Public ReadOnly Property ResultStopB2SID As Integer
         Get
             Return If(stopTypeBox.SelectedIndex = 0, CInt(stopIDBox.Value), 0)
@@ -416,6 +440,18 @@ Public Class formMotionPathTest
                 MessageBox.Show(Me, "Start, Stop, and Resume must use different SW IDs.", "Motion Path Test", MessageBoxButtons.OK, MessageBoxIcon.Information)
                 Return
             End If
+        End If
+        If Not editingExitPath Then
+            For Each sourceType As Integer In New Integer() {2, 3}
+                Dim sourceIDs As New Generic.HashSet(Of Decimal)()
+                Dim startType As Integer = If(sourceType = 2, 2, 1)
+                If triggerTypeBox.SelectedIndex = startType Then sourceIDs.Add(triggerIDBox.Value)
+                If (stopTypeBox.SelectedIndex = sourceType AndAlso stopIDBox.Value > 0 AndAlso Not sourceIDs.Add(stopIDBox.Value)) OrElse
+                   (resumeTypeBox.SelectedIndex = sourceType AndAlso resumeIDBox.Value > 0 AndAlso Not sourceIDs.Add(resumeIDBox.Value)) Then
+                    MessageBox.Show(Me, "Start, Stop, and Resume must use different IDs for the same trigger source.", "Motion Path Test", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    Return
+                End If
+            Next
         End If
         Dim assignedIDs As New Generic.HashSet(Of Decimal)()
         If Not editingExitPath Then
@@ -836,6 +872,7 @@ Public Class formTroughWizard
     Private troughRespawnDuration As Integer
     Private entrySolenoid, entryLamp, entryB2S, stopB2S, resumeB2S As Integer
     Private entrySW, stopSW, resumeSW, removeSW As Integer
+    Private stopLamp, resumeLamp, stopSolenoid, resumeSolenoid As Integer
     Private removeSolenoid, removeLamp, removeB2S As Integer
 
     Public Sub New(snippet As Illumination.BulbInfo, backglassImage As Image,
@@ -863,6 +900,10 @@ Public Class formTroughWizard
                                 New PointF(originalStart.X - Math.Max(60.0F, source.Size.Width * 2.0F), originalStart.Y))
         entrySW = source.SnippitInfo.MotionPathSwitchID : stopSW = source.SnippitInfo.MotionPathStopSwitchID : resumeSW = source.SnippitInfo.MotionPathResumeSwitchID : removeSW = source.SnippitInfo.MotionPathRemoveSwitchID
         entrySolenoid = source.SnippitInfo.MotionPathSolenoidID : entryLamp = source.SnippitInfo.MotionPathLampID : entryB2S = source.SnippitInfo.MotionPathB2SID
+        stopLamp = source.SnippitInfo.MotionPathStopLampID
+        stopSolenoid = source.SnippitInfo.MotionPathStopSolenoidID
+        resumeLamp = source.SnippitInfo.MotionPathResumeLampID
+        resumeSolenoid = source.SnippitInfo.MotionPathResumeSolenoidID
         stopB2S = source.SnippitInfo.MotionPathStopB2SID : resumeB2S = source.SnippitInfo.MotionPathResumeB2SID
         removeSolenoid = source.SnippitInfo.MotionPathRemoveSolenoidID : removeLamp = source.SnippitInfo.MotionPathRemoveLampID : removeB2S = source.SnippitInfo.MotionPathRemoveB2SID
 
@@ -1165,6 +1206,10 @@ Public Class formTroughWizard
             entryPoints = editor.ResultPoints : entryDuration = editor.ResultDuration
             entrySW = editor.ResultSwitchID : stopSW = editor.ResultStopSwitchID : resumeSW = editor.ResultResumeSwitchID
             entrySolenoid = editor.ResultSolenoidID : entryLamp = editor.ResultLampID : entryB2S = editor.ResultB2SID
+            stopLamp = editor.ResultStopLampID
+            stopSolenoid = editor.ResultStopSolenoidID
+            resumeLamp = editor.ResultResumeLampID
+            resumeSolenoid = editor.ResultResumeSolenoidID
             stopB2S = editor.ResultStopB2SID : resumeB2S = editor.ResultResumeB2SID
             troughRespawnEnabled = editor.ResultRespawnEnabled
             troughRespawnStart = editor.ResultRespawnStart
@@ -1220,6 +1265,10 @@ Public Class formTroughWizard
             .MotionPathExitDuration = exitDuration
             .MotionPathSwitchID = entrySW : .MotionPathStopSwitchID = stopSW : .MotionPathResumeSwitchID = resumeSW : .MotionPathRemoveSwitchID = removeSW
             .MotionPathSolenoidID = EntrySolenoidID : .MotionPathLampID = EntryLampID : .MotionPathB2SID = EntryB2SID
+            .MotionPathStopLampID = stopLamp
+            .MotionPathStopSolenoidID = stopSolenoid
+            .MotionPathResumeLampID = resumeLamp
+            .MotionPathResumeSolenoidID = resumeSolenoid
             .MotionPathStopB2SID = stopB2S : .MotionPathResumeB2SID = resumeB2S
             .MotionPathRemoveSolenoidID = removeSolenoid : .MotionPathRemoveLampID = removeLamp : .MotionPathRemoveB2SID = removeB2S
             .MotionPathQueueTriggers = source.SnippitInfo.MotionPathQueueTriggers
@@ -1769,6 +1818,26 @@ Public Class formTroughWizard
     Public ReadOnly Property EntryB2SID As Integer
         Get
             Return entryB2S
+        End Get
+    End Property
+    Public ReadOnly Property StopLampID As Integer
+        Get
+            Return stopLamp
+        End Get
+    End Property
+    Public ReadOnly Property StopSolenoidID As Integer
+        Get
+            Return stopSolenoid
+        End Get
+    End Property
+    Public ReadOnly Property ResumeLampID As Integer
+        Get
+            Return resumeLamp
+        End Get
+    End Property
+    Public ReadOnly Property ResumeSolenoidID As Integer
+        Get
+            Return resumeSolenoid
         End Get
     End Property
     Public ReadOnly Property StopB2SID As Integer

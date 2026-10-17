@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Collections.Generic
 Imports System.Diagnostics
 Imports System.Drawing
@@ -151,7 +151,11 @@ Public Class B2SPictureBox
     Public Property MotionPathLoop() As Boolean = False
     Public Property MotionPathSwitchID() As Integer = 0
     Public Property MotionPathStopSwitchID() As Integer = 0
+    Public Property MotionPathStopLampID() As Integer = 0
+    Public Property MotionPathStopSolenoidID() As Integer = 0
     Public Property MotionPathResumeSwitchID() As Integer = 0
+    Public Property MotionPathResumeLampID() As Integer = 0
+    Public Property MotionPathResumeSolenoidID() As Integer = 0
     Public Property MotionPathRemoveSwitchID() As Integer = 0
     Public Property MotionPathSolenoidID() As Integer = 0
     Public Property MotionPathLampID() As Integer = 0

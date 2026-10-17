@@ -1,4 +1,4 @@
-#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
+﻿#Disable Warning BC42016, BC42017, BC42018, BC42019, BC42032
 Imports System.Text
 Imports System.Runtime.InteropServices
 Imports Microsoft.Win32
@@ -797,6 +797,19 @@ Public Class Server
                 Dim lampid As Integer = CInt(lamps(i, 0))
                 Dim lampstate As Integer = CInt(lamps(i, 1))
                 B2SData.SetPivotTriggerState(B2SData.PivotLampIDs, lampid, If(lampstate > lampThreshold, 1, 0))
+                B2SData.FirePhysicsLaunchers(2, lampid, If(lampstate > lampThreshold, 1, 0))
+                If lampstate > lampThreshold Then
+                    If B2SData.UsedMotionPathStopLampIDs.ContainsKey(lampid) Then
+                        For Each picture As B2SPictureBox In B2SData.UsedMotionPathStopLampIDs(lampid)
+                            picture.StopMotionPath()
+                        Next
+                    End If
+                    If B2SData.UsedMotionPathResumeLampIDs.ContainsKey(lampid) Then
+                        For Each picture As B2SPictureBox In B2SData.UsedMotionPathResumeLampIDs(lampid)
+                            picture.ResumeMotionPath()
+                        Next
+                    End If
+                End If
 
                 If lampstate > lampThreshold AndAlso (B2SData.UsedMotionPathLampIDs.ContainsKey(lampid) OrElse B2SData.UsedMotionPathRemoveLampIDs.ContainsKey(lampid)) Then
                     If B2SData.UsedMotionPathLampIDs.ContainsKey(lampid) Then B2SData.StartMotionPaths(B2SData.UsedMotionPathLampIDs(lampid))
@@ -1024,6 +1037,18 @@ Public Class Server
                 Dim solenoidstate As Integer = CInt(solenoids(i, 1))
                 B2SData.SetPivotTriggerState(B2SData.PivotSolenoidIDs, solenoidid, solenoidstate)
                 B2SData.FirePhysicsLaunchers(1, solenoidid, solenoidstate)
+                If solenoidstate <> 0 Then
+                    If B2SData.UsedMotionPathStopSolenoidIDs.ContainsKey(solenoidid) Then
+                        For Each picture As B2SPictureBox In B2SData.UsedMotionPathStopSolenoidIDs(solenoidid)
+                            picture.StopMotionPath()
+                        Next
+                    End If
+                    If B2SData.UsedMotionPathResumeSolenoidIDs.ContainsKey(solenoidid) Then
+                        For Each picture As B2SPictureBox In B2SData.UsedMotionPathResumeSolenoidIDs(solenoidid)
+                            picture.ResumeMotionPath()
+                        Next
+                    End If
+                End If
 
                 If solenoidstate <> 0 AndAlso (B2SData.UsedMotionPathSolenoidIDs.ContainsKey(solenoidid) OrElse B2SData.UsedMotionPathRemoveSolenoidIDs.ContainsKey(solenoidid)) Then
                     If B2SData.UsedMotionPathSolenoidIDs.ContainsKey(solenoidid) Then B2SData.StartMotionPaths(B2SData.UsedMotionPathSolenoidIDs(solenoidid))

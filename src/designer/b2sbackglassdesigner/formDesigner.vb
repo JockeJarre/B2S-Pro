@@ -3417,7 +3417,7 @@ Public Class formDesigner
 
     Private Sub HelpTopics_Click(sender As System.Object, e As System.EventArgs) Handles tsmiHelpTopics.Click
         Try
-            Help.ShowHelp(Me, EnsureB2SProHelpFile(), HelpNavigator.TableOfContents)
+            Process.Start(New ProcessStartInfo(EnsureB2SProHelpFile()) With {.UseShellExecute = True})
         Catch ex As Exception
             B2SMessageBox.Show(Me,
                                "B2S Pro Help could not be opened." & Environment.NewLine & Environment.NewLine & ex.Message,
@@ -3428,6 +3428,47 @@ Public Class formDesigner
     End Sub
 
     Private Function EnsureB2SProHelpFile() As String
+        Const resourceName As String = "B2SProHelp.html"
+        Dim helpBytes As Byte()
+
+        Using resourceStream As Stream = Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)
+            If resourceStream Is Nothing Then
+                Throw New InvalidOperationException("The embedded B2S Pro Help resource is missing.")
+            End If
+
+            Using buffer As New MemoryStream()
+                resourceStream.CopyTo(buffer)
+                helpBytes = buffer.ToArray()
+            End Using
+        End Using
+
+        Dim contentHash As String
+        Using sha256 = Security.Cryptography.SHA256.Create()
+            contentHash = BitConverter.ToString(sha256.ComputeHash(helpBytes)).Replace("-", String.Empty).Substring(0, 12)
+        End Using
+
+        Dim helpFolder As String = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                                "B2S Pro",
+                                                "Help")
+        Directory.CreateDirectory(helpFolder)
+
+        Dim helpFile As String = Path.Combine(helpFolder, "B2SProHelp-" & contentHash & ".html")
+        If Not File.Exists(helpFile) OrElse New FileInfo(helpFile).Length <> helpBytes.LongLength Then
+            File.WriteAllBytes(helpFile, helpBytes)
+        End If
+
+        Return helpFile
+    End Function
+
+    Private Sub OriginalHelp_Click(sender As Object, e As EventArgs) Handles tsmiOriginalHelp.Click
+        Try
+            Help.ShowHelp(Me, EnsureOriginalB2SHelpFile(), HelpNavigator.TableOfContents)
+        Catch ex As Exception
+            B2SMessageBox.Show(Me, "Original B2S Help could not be opened." & Environment.NewLine & ex.Message, AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
+    Private Function EnsureOriginalB2SHelpFile() As String
         Const resourceName As String = "B2SProHelp.chm"
         Dim helpBytes As Byte()
 
@@ -3729,6 +3770,10 @@ Public Class formDesigner
         ' old code only refreshed this command when the hidden Image menu was
         ' opened, leaving the visible brightness button disabled indefinitely.
         tsmiBrightness.Enabled = isValid
+        ' Refresh project-dependent commands without requiring their menus to open.
+        tsmiImportDMDImage.Enabled = isValid AndAlso Backglass.currentData.DMDType <> eDMDType.NoB2SDMD
+        tsmiBackglassPreviewAndTest.Enabled = isValid
+        tsmiCreateDirectAccessBackglassCodeFile.Enabled = isValid AndAlso Backglass.currentData.DestType = eDestType.DirectB2S
         tsbShowScoreFrames.Enabled = isValid
         tsbAddNewReelOrLEDFrame.Enabled = isValid
         tsbShowScoring.Enabled = isValid

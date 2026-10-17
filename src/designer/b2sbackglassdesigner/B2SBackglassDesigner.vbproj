@@ -761,6 +761,9 @@
     <EmbeddedResource Include="Resources\B2SProHelp.chm">
       <LogicalName>B2SProHelp.chm</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Resources\B2SProHelp.html">
+      <LogicalName>B2SProHelp.html</LogicalName>
+    </EmbeddedResource>
     <Content Include="Resources\Codefiles\formDMD.vb.txt" />
     <Content Include="Resources\Codefiles\Application.Designer.vb.txt" />
     <None Include="Resources\undo.png" />

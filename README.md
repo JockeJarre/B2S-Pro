@@ -70,3 +70,7 @@ Build and test both x86 and x64 Designer targets. Server support applications ha
 B2S Pro is derived from the original Backglass Designer created by Herweh and the B2S Team. Without their work, dedication, and vision, B2S Pro would not have been possible.
 
 Copyright © 2026 Ken Wildman. B2S-derived code remains subject to the original B2S license included in this repository.
+
+## Help
+
+The Help menu offers **B2S Pro Illustrated Guide** for the expanded workflows and **B2S Help** for the original editor reference. Both are embedded in the Designer; no separate help files need to be downloaded.

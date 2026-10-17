@@ -9,41 +9,6 @@
 </OBJECT>
 <UL>
     <LI><OBJECT type="text/sitemap">
-            <param name="Name" value="B2S Pro">
-            <param name="Name" value="B2S Pro — New Features">
-            <param name="Local" value="B2SPro.htm">
-         </OBJECT>
-    <LI><OBJECT type="text/sitemap">
-            <param name="Name" value="Trough animation">
-            <param name="Name" value="Trough animation and rolling balls">
-            <param name="Local" value="B2SPro.htm#trough">
-         </OBJECT>
-    <LI><OBJECT type="text/sitemap">
-            <param name="Name" value="Flashers">
-            <param name="Name" value="Dedicated flashers and masks">
-            <param name="Local" value="B2SPro.htm#flashers">
-         </OBJECT>
-    <LI><OBJECT type="text/sitemap">
-            <param name="Name" value="3D EM reels">
-            <param name="Name" value="Realistic backlit 3D EM reels">
-            <param name="Local" value="B2SPro.htm#reel-3d">
-         </OBJECT>
-    <LI><OBJECT type="text/sitemap">
-            <param name="Name" value="Reel backlighting">
-            <param name="Name" value="Realistic backlit 3D EM reels">
-            <param name="Local" value="B2SPro.htm#reel-3d">
-         </OBJECT>
-    <LI><OBJECT type="text/sitemap">
-            <param name="Name" value="Motion paths">
-            <param name="Name" value="Motion paths and triggers">
-            <param name="Local" value="B2SPro.htm#motion">
-         </OBJECT>
-    <LI><OBJECT type="text/sitemap">
-            <param name="Name" value="Quick Selection">
-            <param name="Name" value="Snippets and Quick Selection">
-            <param name="Local" value="B2SPro.htm#snippets">
-         </OBJECT>
-    <LI><OBJECT type="text/sitemap">
             <param name="Name" value="A B2S backglass from scratch">
             <param name="Name" value="A B2S backglass from scratch">
             <param name="Local" value="ab2sbackglassfromscratch.htm">
