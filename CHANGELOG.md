@@ -6,6 +6,8 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 
 ### October 18 update — versions unchanged
 
+- Let the first left-click activate the main toolbar/menu and perform its normal action when returning from another window or floating panel. Preserve right-click behavior. Confirmed in local user testing.
+
 - Remember the Auto Save toolbar setting across restarts. Turning it off keeps it off until explicitly enabled again; new installations retain the default of on. Local restart behavior confirmed by the user.
 
 - Keep resized snippets at their chosen canvas scale when rotating with the drag handle, including grouped picture-animation frames. Preserve source-image detail and existing unresized rotation behavior.

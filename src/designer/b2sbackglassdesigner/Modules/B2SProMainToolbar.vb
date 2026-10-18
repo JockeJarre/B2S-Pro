@@ -1207,3 +1207,32 @@ Public Class B2SNeonProgressControl
         End Using
     End Sub
 End Class
+' Preserve the first left-click when returning from another window or tool panel.
+' Leave normal item dispatch, dropdowns, right-clicks and focus handling intact.
+Public Class FirstClickToolStrip
+    Inherits ToolStrip
+
+    Public Sub New()
+        MyBase.New()
+    End Sub
+
+    Protected Overrides Sub WndProc(ByRef message As Message)
+        MyBase.WndProc(message)
+        If message.Msg = &H21 AndAlso message.Result = New IntPtr(2) AndAlso
+           ((message.LParam.ToInt64() >> 16) And &HFFFFL) = &H201 Then
+            message.Result = New IntPtr(1)
+        End If
+    End Sub
+End Class
+
+Public Class FirstClickMenuStrip
+    Inherits MenuStrip
+
+    Protected Overrides Sub WndProc(ByRef message As Message)
+        MyBase.WndProc(message)
+        If message.Msg = &H21 AndAlso message.Result = New IntPtr(2) AndAlso
+           ((message.LParam.ToInt64() >> 16) And &HFFFFL) = &H201 Then
+            message.Result = New IntPtr(1)
+        End If
+    End Sub
+End Class
