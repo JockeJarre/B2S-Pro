@@ -1108,12 +1108,52 @@ Public Class formDesigner
 
     Private Sub InitializeAutoSave()
         autoSaveTimer.Interval = AutoSaveIntervalMinutes * 60 * 1000
-        autoSaveTimer.Enabled = True
-        tsbHelp.Checked = True
+        autoSaveTimer.Enabled = RestoredAutoSaveEnabled()
+        tsbHelp.Checked = autoSaveTimer.Enabled
+        tsbHelp.ToolTipText = If(autoSaveTimer.Enabled, "Auto Save is ON", "Auto Save is OFF")
+    End Sub
+
+    Private Function RestoredAutoSaveEnabled() As Boolean
+        Try
+            If XmlSettings Is Nothing Then
+                XmlSettings = New Xml.XmlDocument()
+                If IO.File.Exists(SettingsFileName) Then
+                    XmlSettings.Load(SettingsFileName)
+                Else
+                    XmlSettings.LoadXml(My.Resources.B2SBackglassDesigner_Settings_xml)
+                End If
+            End If
+            Dim node As Xml.XmlNode = XmlSettings.SelectSingleNode("B2SBackglassDesignerSettings/FormSettings/formDesigner/AutoSaveEnabled")
+            Dim enabled As Boolean
+            If node IsNot Nothing AndAlso node.Attributes("Value") IsNot Nothing AndAlso
+               Boolean.TryParse(node.Attributes("Value").Value, enabled) Then Return enabled
+        Catch ex As Exception
+            Debug.WriteLine("Could not read Auto Save preference: " & ex.Message)
+        End Try
+        Return True
+    End Function
+
+    Private Sub SaveAutoSaveEnabled()
+        Try
+            If XmlSettings Is Nothing Then RestoredAutoSaveEnabled()
+            Dim designerNode As Xml.XmlElement = TryCast(XmlSettings.SelectSingleNode("B2SBackglassDesignerSettings/FormSettings/formDesigner"), Xml.XmlElement)
+            If designerNode Is Nothing Then Return
+            Dim node As Xml.XmlElement = TryCast(designerNode.SelectSingleNode("AutoSaveEnabled"), Xml.XmlElement)
+            If node Is Nothing Then
+                node = XmlSettings.CreateElement("AutoSaveEnabled")
+                designerNode.AppendChild(node)
+            End If
+            node.SetAttribute("Value", autoSaveTimer.Enabled.ToString())
+            IO.Directory.CreateDirectory(BackglassProjectsPath)
+            XmlSettings.Save(SettingsFileName)
+        Catch ex As Exception
+            Debug.WriteLine("Could not save Auto Save preference: " & ex.Message)
+        End Try
     End Sub
 
     Private Sub AutoSaveToolbar_Click(sender As Object, e As EventArgs) Handles tsbHelp.Click
         autoSaveTimer.Enabled = tsbHelp.Checked
+        SaveAutoSaveEnabled()
         tsbHelp.ToolTipText = If(autoSaveTimer.Enabled, "Auto Save is ON", "Auto Save is OFF")
         tsB2SDesigner.Invalidate()
         ShowStatus(If(autoSaveTimer.Enabled, "Auto Save turned on", "Auto Save turned off"))

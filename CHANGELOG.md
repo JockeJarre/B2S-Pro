@@ -6,6 +6,8 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 
 ### October 18 update — versions unchanged
 
+- Remember the Auto Save toolbar setting across restarts. Turning it off keeps it off until explicitly enabled again; new installations retain the default of on. Local restart behavior confirmed by the user.
+
 - Keep resized snippets at their chosen canvas scale when rotating with the drag handle, including grouped picture-animation frames. Preserve source-image detail and existing unresized rotation behavior.
 - Canvas shrink-and-rotate behavior confirmed in local user testing. Designer remains 1.0.7 and Server remains 3.0.6.
 
