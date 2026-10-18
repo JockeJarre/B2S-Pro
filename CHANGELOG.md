@@ -4,6 +4,11 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 
 ## 1.0.7 / Server 3.0.6 — 2026-10-11
 
+### October 18 update — versions unchanged
+
+- Keep resized snippets at their chosen canvas scale when rotating with the drag handle, including grouped picture-animation frames. Preserve source-image detail and existing unresized rotation behavior.
+- Canvas shrink-and-rotate behavior confirmed in local user testing. Designer remains 1.0.7 and Server remains 3.0.6.
+
 ### October 17 update — versions unchanged
 
 - Refresh Create Backglass, Preview/Test, and Import DMD command availability when opening or switching projects, without first opening their menus. Preserve the existing destination and DMD restrictions.

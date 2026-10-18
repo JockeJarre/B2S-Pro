@@ -192,11 +192,13 @@ Public Class Mouse
 
         Dim oldImage As Image = currentBulb.Image
         If oldImage Is Nothing Then Return
-        Dim rotated As Bitmap = RotatedSingleSnippetFrame(oldImage, angle)
+        Dim pixelScale As Single = SnippetRotationPixelScale(currentBulb)
+        Dim renderSize As New SizeF(currentBulb.Size.Width * pixelScale, currentBulb.Size.Height * pixelScale)
+        Dim rotated As Bitmap = RotatedSingleSnippetFrame(oldImage, angle, renderSize)
         currentBulb.Image = rotated
-        currentBulb.Size = rotated.Size
-        currentBulb.Location = New Point(CInt(Math.Round(center.X - rotated.Width / 2.0F)),
-                                         CInt(Math.Round(center.Y - rotated.Height / 2.0F)))
+        currentBulb.Size = New Size(Math.Max(1, CInt(rotated.Width / pixelScale)), Math.Max(1, CInt(rotated.Height / pixelScale)))
+        currentBulb.Location = New Point(CInt(Math.Round(center.X - currentBulb.Size.Width / 2.0F)),
+                                         CInt(Math.Round(center.Y - currentBulb.Size.Height / 2.0F)))
         currentBulb.IsIlluminatedImageDirty = True
         If Backglass.currentImages IsNot Nothing Then
             Backglass.currentImages.SetNewImage(Images.eImageInfoType.IlluminationSnippits, currentBulb.Name, rotated)
@@ -208,12 +210,13 @@ Public Class Mouse
         Dim rotatedFrames As New Generic.List(Of Generic.KeyValuePair(Of Illumination.BulbInfo, Bitmap))()
         Dim croppedFrames As New Generic.List(Of Generic.KeyValuePair(Of Illumination.BulbInfo, Bitmap))()
         Dim sharedBounds As Rectangle = Rectangle.Empty
+        Dim pixelScale As Single = SnippetRotationPixelScale(currentBulb)
         Dim committed As Boolean = False
         Try
             For Each item As InfoBase In _selectedItems
                 Dim bulb As Illumination.BulbInfo = TryCast(item, Illumination.BulbInfo)
                 If bulb Is Nothing OrElse bulb.Image Is Nothing Then Continue For
-                Dim rotated As Bitmap = RotatedPictureAnimationFrame(bulb.Image, angle)
+                Dim rotated As Bitmap = RotatedPictureAnimationFrame(bulb.Image, angle, New SizeF(bulb.Size.Width * pixelScale, bulb.Size.Height * pixelScale))
                 rotatedFrames.Add(New Generic.KeyValuePair(Of Illumination.BulbInfo, Bitmap)(bulb, rotated))
                 Dim occupied As Rectangle = AlphaBounds(rotated)
                 If Not occupied.IsEmpty Then
@@ -240,13 +243,13 @@ Public Class Mouse
                 croppedFrames.Add(New Generic.KeyValuePair(Of Illumination.BulbInfo, Bitmap)(frame.Key, cropped))
             Next
 
-            Dim newLocation As New Point(CInt(Math.Round(center.X - expandedSize.Width / 2.0F + sharedBounds.X)),
-                                         CInt(Math.Round(center.Y - expandedSize.Height / 2.0F + sharedBounds.Y)))
+            Dim newLocation As New Point(CInt(Math.Round(center.X + (-expandedSize.Width / 2.0F + sharedBounds.X) / pixelScale)),
+                                         CInt(Math.Round(center.Y + (-expandedSize.Height / 2.0F + sharedBounds.Y) / pixelScale)))
             For Each frame As Generic.KeyValuePair(Of Illumination.BulbInfo, Bitmap) In croppedFrames
                 Dim bulb As Illumination.BulbInfo = frame.Key
                 Dim oldImage As Image = bulb.Image
                 bulb.Image = frame.Value
-                bulb.Size = frame.Value.Size
+                bulb.Size = New Size(Math.Max(1, CInt(frame.Value.Width / pixelScale)), Math.Max(1, CInt(frame.Value.Height / pixelScale)))
                 bulb.Location = newLocation
                 bulb.IsIlluminatedImageDirty = True
                 If Backglass.currentImages IsNot Nothing Then
@@ -267,8 +270,15 @@ Public Class Mouse
         End Try
     End Sub
 
-    Private Function RotatedSingleSnippetFrame(ByVal source As Image, ByVal angle As Single) As Bitmap
-        Dim expanded As Bitmap = RotatedPictureAnimationFrame(source, angle)
+    Private Function SnippetRotationPixelScale(ByVal bulb As Illumination.BulbInfo) As Single
+        ' Placement and source pixels are independent after canvas resizing.
+        ' Keep source detail, but convert rotated bounds back to canvas units.
+        Return CSng(Math.Max(bulb.Image.Width / CDbl(Math.Max(1, bulb.Size.Width)),
+                            bulb.Image.Height / CDbl(Math.Max(1, bulb.Size.Height))))
+    End Function
+
+    Private Function RotatedSingleSnippetFrame(ByVal source As Image, ByVal angle As Single, ByVal renderSize As SizeF) As Bitmap
+        Dim expanded As Bitmap = RotatedPictureAnimationFrame(source, angle, renderSize)
         Dim occupied As Rectangle = AlphaBounds(expanded)
         If occupied.Width <= 0 OrElse occupied.Height <= 0 OrElse
            (occupied.X = 0 AndAlso occupied.Y = 0 AndAlso occupied.Width = expanded.Width AndAlso occupied.Height = expanded.Height) Then Return expanded
@@ -309,10 +319,10 @@ Public Class Mouse
         Return Rectangle.FromLTRB(left, top, right + 1, bottom + 1)
     End Function
 
-    Private Function RotatedPictureAnimationFrame(ByVal source As Image, ByVal angle As Single) As Bitmap
+    Private Function RotatedPictureAnimationFrame(ByVal source As Image, ByVal angle As Single, ByVal renderSize As SizeF) As Bitmap
         Dim radians As Double = angle * Math.PI / 180.0R
-        Dim width As Integer = Math.Max(1, CInt(Math.Ceiling(Math.Abs(source.Width * Math.Cos(radians)) + Math.Abs(source.Height * Math.Sin(radians)))))
-        Dim height As Integer = Math.Max(1, CInt(Math.Ceiling(Math.Abs(source.Width * Math.Sin(radians)) + Math.Abs(source.Height * Math.Cos(radians)))))
+        Dim width As Integer = Math.Max(1, CInt(Math.Ceiling(Math.Abs(renderSize.Width * Math.Cos(radians)) + Math.Abs(renderSize.Height * Math.Sin(radians)))))
+        Dim height As Integer = Math.Max(1, CInt(Math.Ceiling(Math.Abs(renderSize.Width * Math.Sin(radians)) + Math.Abs(renderSize.Height * Math.Cos(radians)))))
         Dim result As New Bitmap(width, height, Imaging.PixelFormat.Format32bppArgb)
         Using graphics As Graphics = Graphics.FromImage(result)
             graphics.Clear(Color.Transparent)
@@ -323,7 +333,7 @@ Public Class Mouse
             graphics.SmoothingMode = Drawing2D.SmoothingMode.HighQuality
             graphics.TranslateTransform(width / 2.0F, height / 2.0F)
             graphics.RotateTransform(angle)
-            graphics.DrawImage(source, -source.Width / 2.0F, -source.Height / 2.0F, source.Width, source.Height)
+            graphics.DrawImage(source, -renderSize.Width / 2.0F, -renderSize.Height / 2.0F, renderSize.Width, renderSize.Height)
         End Using
         Return result
     End Function
