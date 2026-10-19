@@ -4,6 +4,10 @@ All notable B2S Pro changes are documented here. Release packages and checksums 
 
 ## 1.0.7 / Server 3.0.6 — 2026-10-11
 
+### October 19 update — versions unchanged
+
+- Keep selection masks aligned with the original artwork when adding or resizing a speaker panel. Extend the mask canvas with transparent space instead of stretching its existing pixels; preserve masks through Undo/Redo and project/runtime exports.
+
 ### October 18 update — versions unchanged
 
 - Let the first left-click activate the main toolbar/menu and perform its normal action when returning from another window or floating panel. Preserve right-click behavior. Confirmed in local user testing.

@@ -57,6 +57,36 @@ Public Module AddedGrillPanel
         End Using
     End Function
 
+    Private Function ResizeSelectionMask(encoded As String, width As Integer, height As Integer) As String
+        If String.IsNullOrEmpty(encoded) Then Return encoded
+        Using stream As New MemoryStream(Convert.FromBase64String(encoded)), mask As New Bitmap(stream)
+            If mask.Width = width AndAlso mask.Height = height Then Return encoded
+            ' Selection masks use artwork coordinates. Pad/crop the canvas, never
+            ' scale the selected pixels when a speaker panel changes its height.
+            Using result As New Bitmap(width, height, PixelFormat.Format32bppArgb)
+                Dim overlap As New Rectangle(0, 0, Math.Min(width, mask.Width), Math.Min(height, mask.Height))
+                Using source As Bitmap = mask.Clone(overlap, PixelFormat.Format32bppArgb)
+                    Dim readBits = source.LockBits(overlap, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb)
+                    Dim writeBits = result.LockBits(overlap, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb)
+                    Try
+                        Dim row(overlap.Width * 4 - 1) As Byte
+                        For y As Integer = 0 To overlap.Height - 1
+                            Runtime.InteropServices.Marshal.Copy(IntPtr.Add(readBits.Scan0, y * readBits.Stride), row, 0, row.Length)
+                            Runtime.InteropServices.Marshal.Copy(row, 0, IntPtr.Add(writeBits.Scan0, y * writeBits.Stride), row.Length)
+                        Next
+                    Finally
+                        result.UnlockBits(writeBits)
+                        source.UnlockBits(readBits)
+                    End Try
+                End Using
+                Using output As New MemoryStream()
+                    result.Save(output, ImageFormat.Png)
+                    Return Convert.ToBase64String(output.ToArray())
+                End Using
+            End Using
+        End Using
+    End Function
+
     Public Class Snapshot
         Public ReadOnly MainImage As Image
         Public ReadOnly OriginalHeight As Integer
@@ -64,6 +94,7 @@ Public Module AddedGrillPanel
         Public ReadOnly SmallHeight As Integer
         Public ReadOnly Mask As String
         Public ReadOnly MaskSource As String
+        Public ReadOnly SelectionMasks As New Generic.Dictionary(Of Illumination.BulbInfo, String)
         Public ReadOnly Artwork As New Generic.Dictionary(Of Images.ImageInfo, Image)
         Public Sub New(data As Backglass.Data)
             MainImage = data.Image
@@ -72,6 +103,9 @@ Public Module AddedGrillPanel
             SmallHeight = data.SmallGrillHeight
             Mask = data.GlobalIlluminationMaskData
             MaskSource = data.GlobalIlluminationMaskSourceData
+            For Each bulb As Illumination.BulbInfo In data.Bulbs
+                SelectionMasks(bulb) = bulb.SelectionMaskData
+            Next
             For Each item As Images.ImageInfo In data.Images
                 If item.Type = Images.eImageInfoType.BackgroundImage OrElse item.Type = Images.eImageInfoType.IlluminationImage Then Artwork(item) = item.Image
             Next
@@ -87,6 +121,9 @@ Public Module AddedGrillPanel
             data.SmallGrillHeight = SmallHeight
             data.GlobalIlluminationMaskData = Mask
             data.GlobalIlluminationMaskSourceData = MaskSource
+            For Each item In SelectionMasks
+                item.Key.SelectionMaskData = item.Value
+            Next
             RefreshCanvas(target)
         End Sub
     End Class
@@ -108,6 +145,7 @@ Public Module AddedGrillPanel
         ' Prepare everything before touching any document values.
         Dim nextMain As Bitmap = Compose(data.Image, original, panel, height)
         Dim nextImages As New Generic.Dictionary(Of Images.ImageInfo, Image)
+        Dim nextSelectionMasks As New Generic.Dictionary(Of Illumination.BulbInfo, String)
         Dim nextMask As String
         Dim nextMaskSource As String
         Try
@@ -119,6 +157,11 @@ Public Module AddedGrillPanel
             Next
             nextMask = ExtendMask(data.GlobalIlluminationMaskData, data.Image.Width, original, height, data.GlobalIlluminationMaskInverted)
             nextMaskSource = ExtendMask(data.GlobalIlluminationMaskSourceData, data.Image.Width, original, height, data.GlobalIlluminationMaskInverted)
+            For Each bulb As Illumination.BulbInfo In data.Bulbs
+                If Not String.IsNullOrEmpty(bulb.SelectionMaskData) Then
+                    nextSelectionMasks(bulb) = ResizeSelectionMask(bulb.SelectionMaskData, data.Image.Width, finalHeight)
+                End If
+            Next
         Catch
             nextMain.Dispose()
             For Each image In nextImages.Values
@@ -136,6 +179,9 @@ Public Module AddedGrillPanel
         data.SmallGrillHeight = 0
         data.GlobalIlluminationMaskData = nextMask
         data.GlobalIlluminationMaskSourceData = nextMaskSource
+        For Each item In nextSelectionMasks
+            item.Key.SelectionMaskData = item.Value
+        Next
         Undo.AddEntry(New Undo.UndoEntry(Undo.Type.GrillPanelChanged, previous) With {.Owner = target})
         RefreshCanvas(target)
     End Sub
