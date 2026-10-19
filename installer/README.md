@@ -3,8 +3,8 @@
 The same tested installation engine produces two separate setup programs:
 
 - `B2SProSetup.exe` installs B2S Pro Backglass Designer 1.0.7 beside the
-  original Designer and installs or updates B2S Pro Server 3.0.6.
-- `B2SServerSetup.exe` installs or updates only B2S Pro Server 3.0.6 for VPX
+  original Designer and installs or updates B2S Pro Server 3.0.7.
+- `B2SServerSetup.exe` installs or updates only B2S Pro Server 3.0.7 for VPX
   players who do not need the Designer.
 
 ## Installation model
@@ -30,7 +30,24 @@ The same tested installation engine produces two separate setup programs:
 - The B2S Server is mandatory. Declining an existing-server update cancels the
   complete installation rather than leaving mismatched Designer and Server
   versions.
-- Every replaced program file is copied to a dated backup first.
+- Both setups save and verify only existing Server files that the update replaces
+  or removes, under `%ProgramData%\B2SPro\Recovery`. Existing protected settings,
+  plugins, tables, projects, Designer files, and old backups are not included.
+  Unreadable selected files, linked paths, insufficient space, or failed checksums
+  stop installation. Designer replacement files have temporary rollback copies
+  during installation; those copies are discarded after successful installation.
+- **Restore Previous Setup** opens a saved `Recovery.json` in its dated recovery
+  folder. It shows the original locations and backup date before confirmation.
+  Close VPX, Designer, and running backglasses first. Restore verifies the backup,
+  saves and verifies only the current copies of affected files as a safety backup,
+  restores the previous server files, and removes package files recorded as new
+  during that update. Existing settings, plugins, unrelated files and backup folders
+  remain. A failed restore attempts to recover the pre-restore files and reports
+  the safety backup location if recovery also fails.
+- These are **server-file backups**, not a Windows system rollback: registration,
+  file associations, shortcuts, filesystem permissions, and settings outside the
+  selected folders are not restored. Existing older `B2SPro-Backups` folders are
+  replacement-file backups and cannot be selected in the new Restore screen.
 - `ScreenRes.txt`, `B2STableSettings.xml`, the `Plugins` and `Plugins64`
   folders, projects, tables, backglasses, and unrelated files are preserved.
 - Setup hides the Designer's `B2SPro.exe.config`, `B2SVPinMAMEStarter.exe.config`,
@@ -52,10 +69,10 @@ For private development or offline installation, keep the applicable verified
 files together in one folder:
 
 - Complete setup: `B2SProSetup.exe`, `B2S-Pro-Backglass-1.0.7.zip`,
-  `B2S-Pro-Backglass-1.0.7.zip.sha256`, `B2S-Pro-Server-3.0.6.zip`, and
-  `B2S-Pro-Server-3.0.6.zip.sha256`.
-- Server-only setup: `B2SServerSetup.exe`, `B2S-Pro-Server-3.0.6.zip`, and
-  `B2S-Pro-Server-3.0.6.zip.sha256`.
+  `B2S-Pro-Backglass-1.0.7.zip.sha256`, `B2S-Pro-Server-3.0.7.zip`, and
+  `B2S-Pro-Server-3.0.7.zip.sha256`.
+- Server-only setup: `B2SServerSetup.exe`, `B2S-Pro-Server-3.0.7.zip`, and
+  `B2S-Pro-Server-3.0.7.zip.sha256`.
 
 Each package's checksum sidecar is required. Setup verifies every required
 package before changing any installed files.

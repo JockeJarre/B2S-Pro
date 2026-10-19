@@ -19,11 +19,11 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 #if SERVER_ONLY
-[assembly: AssemblyTitle("B2S Server Setup")]
+[assembly: AssemblyTitle("B2S Pro Server Setup")]
 [assembly: AssemblyProduct("B2S Pro Server")]
-[assembly: AssemblyVersion("3.0.6.0")]
-[assembly: AssemblyFileVersion("3.0.6.0")]
-[assembly: AssemblyInformationalVersion("3.0.6")]
+[assembly: AssemblyVersion("3.0.7.0")]
+[assembly: AssemblyFileVersion("3.0.7.0")]
+[assembly: AssemblyInformationalVersion("3.0.7")]
 #else
 [assembly: AssemblyTitle("B2S Pro Setup")]
 [assembly: AssemblyProduct("B2S Pro Backglass Designer")]
@@ -57,8 +57,8 @@ namespace B2SPro.Setup
     {
 #if SERVER_ONLY
         public static readonly bool ServerOnly = true;
-        public const string Title = "B2S Server Setup & Updater";
-        public const string Product = "B2S Server";
+        public const string Title = "B2S Pro Server Setup";
+        public const string Product = "B2S Pro Server";
         public const string ButtonText = "Install / Update Server";
 #else
         public static readonly bool ServerOnly = false;
@@ -131,6 +131,8 @@ namespace B2SPro.Setup
         private readonly RadioButton _localSource = new RadioButton();
         private readonly RadioButton _githubSource = new RadioButton();
         private readonly Button _installButton = new NeonButton { Primary = true };
+        private readonly Button _restoreButton = new NeonButton();
+        private bool _operationRunning;
         private readonly NeonProgress _progress = new NeonProgress();
         private readonly Label _status = new Label();
         private readonly Label _intro = new Label();
@@ -154,6 +156,7 @@ namespace B2SPro.Setup
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = SetupEdition.ServerOnly ? new Size(620, 450) : new Size(620, 560);
             BuildInterface();
+            FormClosing += delegate(object sender, FormClosingEventArgs e) { if (_operationRunning) e.Cancel = true; };
             FormBorderStyle = FormBorderStyle.None;
             Padding = new Padding(4);
             var chrome = new NeonChrome(this) { Dock = DockStyle.Top, Height = 30 };
@@ -318,7 +321,7 @@ namespace B2SPro.Setup
             statusPanel.Controls.Add(_status, 0, 1);
             _root.Controls.Add(statusPanel, 0, nextRow++);
 
-            var buttons = new FlowLayoutPanel { BackColor = Color.Transparent, Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Padding = new Padding(0, 2, 0, 0) };
+            var buttons = new FlowLayoutPanel { BackColor = Color.Transparent, Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.RightToLeft, WrapContents = true, Padding = new Padding(0, 2, 0, 0) };
             var close = StyledButton("Close", 104);
             close.Click += delegate { Close(); };
             _installButton.Text = SetupEdition.ButtonText;
@@ -329,6 +332,10 @@ namespace B2SPro.Setup
             _installButton.Click += InstallClicked;
             buttons.Controls.Add(close);
             buttons.Controls.Add(_installButton);
+            _restoreButton.Text = "Restore Previous Setup";
+            StyleButton(_restoreButton, 190);
+            _restoreButton.Click += RestoreClicked;
+            buttons.Controls.Add(_restoreButton);
             _root.Controls.Add(buttons, 0, nextRow);
         }
 
@@ -494,10 +501,13 @@ namespace B2SPro.Setup
                         return;
                     }
 
-                    SetBusy(true, "Backing up and installing files...");
+                    SetBusy(true, "Backing up and verifying the server files this update replaces...");
+                    string recovery = await Task.Run(delegate { return plan.CreateRecovery(); });
+                    SetBusy(true, "Backup verified. Installing files...");
                     InstallResult result = await Task.Run(delegate { return plan.Execute(true, !SetupEdition.ServerOnly, !SetupEdition.ServerOnly); });
                     SetBusy(false, SetupEdition.Product + " installation completed successfully.");
                     string message = result.BuildSummary();
+                    message += "\r\nServer recovery backup: " + recovery + "\r\nUse Restore Previous Setup to restore the previous server files. Existing settings and plugins stay in place.";
                     try
                     {
                         SetupPaths.Save(_vpxFolder.Text.Trim(), SetupEdition.ServerOnly ? null : _designerFolder.Text.Trim(), _serverFolder.Text.Trim());
@@ -549,6 +559,35 @@ namespace B2SPro.Setup
             return null;
         }
 
+        private async void RestoreClicked(object sender, EventArgs e)
+        {
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Title = "Choose a dated B2S Pro recovery backup";
+                dialog.Filter = "B2S Pro recovery (Recovery.json)|Recovery.json";
+                if (Directory.Exists(FolderRecovery.DefaultRoot)) dialog.InitialDirectory = FolderRecovery.DefaultRoot;
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    SetBusy(true, "Verifying the selected backup...");
+                    RecoveryRecord record = await Task.Run(delegate { return FolderRecovery.Read(dialog.FileName); });
+                    SetBusy(false, "Backup verified. Review the original locations before restoring.");
+                    string message = "Restore the saved files and settings from " + record.Created + "?\r\n\r\n" + String.Join("\r\n", record.Roots.ToArray()) +
+                        "\r\n\r\nClose VPX and all backglasses first. Only files covered by this backup will be restored. Their current copies will be preserved first. Files recorded as added by the update will be removed; other files are kept.\r\n\r\nWindows registration and shortcuts are not restored.";
+                    if (NeonMessage.Show(this, message, "Restore Previous Setup", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+                    SetBusy(true, "Verifying backup and preserving current files before restore...");
+                    string saved = await Task.Run(delegate { return FolderRecovery.Restore(dialog.FileName, FolderRecovery.DefaultRoot); });
+                    SetBusy(false, "Previous folder files and settings restored.");
+                    NeonMessage.Show(this, "Restore completed.\r\nCurrent files were preserved here:\r\n" + saved, "Restore Previous Setup", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    SetBusy(false, "Restore stopped. See the message for details.");
+                    NeonMessage.Show(this, ex.Message, "Restore Previous Setup", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
         private static bool IsLockedForReplacement(string path)
         {
             if (!File.Exists(path)) return false;
@@ -572,6 +611,7 @@ namespace B2SPro.Setup
                 : "The B2S Server update is included. Do you want to back up and overwrite these program files?");
             message.AppendLine();
             message.AppendLine("ScreenRes.txt, B2STableSettings.xml, plug-ins, projects, tables, and backglasses will not be overwritten.");
+            message.AppendLine("Only existing server files replaced or removed by this update will be backed up and verified in " + FolderRecovery.DefaultRoot + ". Existing settings, plugins, Designer projects, tables and old backups are not copied. Windows registration and shortcuts are not backed up.");
             return NeonMessage.Show(this, message.ToString(), "Existing installation found", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
         }
 
@@ -608,6 +648,9 @@ namespace B2SPro.Setup
 
         private void SetBusy(bool busy, string text)
         {
+            _operationRunning = busy;
+            _root.Enabled = !busy;
+            _restoreButton.Enabled = !busy;
             _installButton.Enabled = !busy;
             _status.Text = text;
             if (!busy)
@@ -615,7 +658,7 @@ namespace B2SPro.Setup
                 _progress.Style = ProgressBarStyle.Continuous;
                 _progress.Value = 0;
             }
-            else if (_progress.Value == 0) _progress.Style = ProgressBarStyle.Marquee;
+            else { _progress.Value = 0; _progress.Style = ProgressBarStyle.Marquee; }
             UseWaitCursor = busy;
         }
 
@@ -857,7 +900,7 @@ namespace B2SPro.Setup
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             using (var client = new HttpClient())
             {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd(serverOnly ? "B2S-Server-Updater/3.0.6" : "B2S-Pro-Installer/1.0.7");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(serverOnly ? "B2S-Server-Updater/3.0.7" : "B2S-Pro-Installer/1.0.7");
                 string json;
                 try
                 {
@@ -1055,6 +1098,240 @@ namespace B2SPro.Setup
         }
     }
 
+    internal sealed class RecoveryFile
+    {
+        public int Root { get; set; }
+        public string Relative { get; set; }
+        public string Sha256 { get; set; }
+        public int Attributes { get; set; }
+        public long ModifiedUtc { get; set; }
+    }
+
+    internal sealed class RecoveryRecord
+    {
+        public int Format { get; set; }
+        public string Created { get; set; }
+        public List<string> Roots { get; set; }
+        public List<RecoveryFile> Files { get; set; }
+        public List<string> AddedFiles { get; set; }
+        public List<string> Directories { get; set; }
+    }
+
+    // Folder recovery is independent of package installation and never changes registration.
+    internal static class FolderRecovery
+    {
+        public static string DefaultRoot { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "B2SPro", "Recovery"); } }
+        private static JavaScriptSerializer Serializer() { return new JavaScriptSerializer { MaxJsonLength = Int32.MaxValue }; }
+        private static string Full(string path) { return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar); }
+        private static bool Within(string path, string root) { return Full(path).StartsWith(Full(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase); }
+        private static bool Covered(string path, List<string> roots) { foreach (string root in roots) if (Within(path, root)) return true; return false; }
+
+        private static void CheckPath(string path)
+        {
+            string full = Path.GetFullPath(path);
+            for (string current = full; !String.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
+            {
+                if ((File.Exists(current) || Directory.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("A linked folder or file cannot be safely backed up or restored: " + current);
+                if (String.Equals(current, Path.GetPathRoot(current), StringComparison.OrdinalIgnoreCase)) break;
+            }
+        }
+
+        private static void EnsureClosed(List<string> roots)
+        {
+            foreach (Process process in Process.GetProcesses())
+            {
+                using (process)
+                {
+                    string name = process.ProcessName;
+                    if (name.StartsWith("VPinballX", StringComparison.OrdinalIgnoreCase) ||
+                        String.Equals(name, "B2SPro", StringComparison.OrdinalIgnoreCase) ||
+                        String.Equals(name, "B2SBackglassServerEXE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // VPX can host the server DLL even when its executable lives outside the server folder.
+                        bool relevant = name.StartsWith("VPinballX", StringComparison.OrdinalIgnoreCase);
+                        try { relevant = relevant || Covered(process.MainModule.FileName, roots); }
+                        catch { relevant = true; }
+                        if (relevant) throw new IOException("Close VPX, B2S Pro Designer and running backglasses before backing up or restoring.");
+                    }
+                }
+            }
+        }
+
+        private static void Scan(string folder, List<string> files, List<string> directories)
+        {
+            CheckPath(folder);
+            directories.Add(folder);
+            foreach (string file in Directory.GetFiles(folder)) { CheckPath(file); files.Add(file); }
+            foreach (string child in Directory.GetDirectories(folder)) Scan(child, files, directories);
+        }
+
+        public static string Create(List<string> requestedRoots, List<string> additions, string backupRoot)
+        {
+            return CreateSelected(requestedRoots, additions, backupRoot, null);
+        }
+
+        public static string CreateSelected(List<string> requestedRoots, List<string> additions, string backupRoot, List<string> selectedFiles)
+        {
+            EnsureClosed(requestedRoots);
+            var roots = new List<string>();
+            foreach (string value in requestedRoots)
+            {
+                string root = Full(value);
+                if (root.Length <= Path.GetPathRoot(root).Length || root.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.Windows), StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("Choose an application folder, not a drive or Windows folder.");
+                CheckPath(root);
+                bool nested = false;
+                foreach (string existing in roots) if (String.Equals(root, existing, StringComparison.OrdinalIgnoreCase) || Within(root, existing)) nested = true;
+                if (nested) continue;
+                roots.RemoveAll(delegate(string existing) { return Within(existing, root); });
+                roots.Add(root);
+            }
+            if (roots.Count == 0) throw new IOException("No installation folders were supplied.");
+            foreach (string root in roots)
+                if (String.Equals(Full(backupRoot), root, StringComparison.OrdinalIgnoreCase) || Within(backupRoot, root) || Within(root, backupRoot))
+                    throw new IOException("The recovery folder must be separate from the installation folders: " + backupRoot);
+            CheckPath(backupRoot);
+            var record = new RecoveryRecord { Format = 1, Created = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Roots = roots,
+                Files = new List<RecoveryFile>(), AddedFiles = new List<string>(), Directories = new List<string>() };
+            foreach (string addition in additions)
+            {
+                if (!Covered(addition, roots)) throw new IOException("An installation file is outside the backup folders.");
+                CheckPath(addition);
+                if (!File.Exists(addition)) record.AddedFiles.Add(Full(addition));
+            }
+            var files = new List<string>();
+            if (selectedFiles == null)
+            {
+                foreach (string root in roots) if (Directory.Exists(root)) Scan(root, files, record.Directories);
+            }
+            else
+            {
+                var unique = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string value in selectedFiles)
+                {
+                    string file = Full(value);
+                    if (!Covered(file, roots)) throw new IOException("A recovery file is outside the server folder.");
+                    CheckPath(file);
+                    if (File.Exists(file) && unique.Add(file)) files.Add(file);
+                }
+            }
+            long bytes = 0;
+            foreach (string file in files) bytes = checked(bytes + new FileInfo(file).Length);
+            Directory.CreateDirectory(backupRoot);
+            var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(backupRoot)));
+            if (drive.AvailableFreeSpace < bytes + 64L * 1024 * 1024) throw new IOException("Not enough free space for the complete backup. No installation files were changed.");
+            string destination = Path.Combine(backupRoot, DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            Directory.CreateDirectory(destination);
+            foreach (string file in files)
+            {
+                int index = roots.FindIndex(delegate(string root) { return Within(file, root); });
+                string relative = file.Substring(roots[index].Length + 1);
+                string copy = Path.Combine(destination, "Files", index.ToString(), relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(copy));
+                // Deny writers during the copy and hash check; a changing file stops installation.
+                using (var locked = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    File.Copy(file, copy, false);
+                    string hash = Hashing.Sha256(file);
+                    if (!String.Equals(hash, Hashing.Sha256(copy), StringComparison.OrdinalIgnoreCase)) throw new IOException("Backup verification failed: " + file);
+                    record.Files.Add(new RecoveryFile { Root = index, Relative = relative, Sha256 = hash,
+                        Attributes = (int)File.GetAttributes(file), ModifiedUtc = File.GetLastWriteTimeUtc(file).Ticks });
+                }
+            }
+            string manifest = Path.Combine(destination, "Recovery.json");
+            File.WriteAllText(manifest, Serializer().Serialize(record), Encoding.UTF8);
+            File.WriteAllText(Path.Combine(destination, "README.txt"), "Open either B2S setup and choose Restore Previous Setup, then select Recovery.json.\r\nThis is a folder backup, not a Windows registration or shortcut backup.\r\nOriginal locations:\r\n" + String.Join("\r\n", roots.ToArray()));
+            Read(manifest);
+            return manifest;
+        }
+
+        private static string Target(RecoveryRecord record, RecoveryFile file)
+        {
+            if (file.Root < 0 || file.Root >= record.Roots.Count || String.IsNullOrEmpty(file.Relative) || Path.IsPathRooted(file.Relative)) throw new InvalidDataException("Invalid backup file path.");
+            string target = Path.GetFullPath(Path.Combine(record.Roots[file.Root], file.Relative));
+            if (!Within(target, record.Roots[file.Root])) throw new InvalidDataException("Backup path escapes its original folder.");
+            CheckPath(target);
+            return target;
+        }
+
+        public static RecoveryRecord Read(string manifest)
+        {
+            CheckPath(manifest);
+            var record = Serializer().Deserialize<RecoveryRecord>(File.ReadAllText(manifest));
+            if (record == null || record.Format != 1 || record.Roots == null || record.Roots.Count == 0 || record.Files == null || record.AddedFiles == null || record.Directories == null)
+                throw new InvalidDataException("This is not a complete B2S Pro recovery backup.");
+            foreach (string root in record.Roots)
+            {
+                if (!Path.IsPathRooted(root) || Full(root).Length <= Path.GetPathRoot(root).Length) throw new InvalidDataException("Invalid original folder.");
+                CheckPath(root);
+                if (Within(manifest, root)) throw new InvalidDataException("Recovery backup must be outside the original folders.");
+            }
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (RecoveryFile file in record.Files)
+            {
+                if (!names.Add(Target(record, file))) throw new InvalidDataException("Duplicate backup file.");
+                string stored = Path.Combine(Path.GetDirectoryName(manifest), "Files", file.Root.ToString(), file.Relative);
+                CheckPath(stored);
+                if (!String.Equals(Hashing.Sha256(stored), file.Sha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Backup is damaged or incomplete: " + stored);
+            }
+            foreach (string addition in record.AddedFiles)
+            {
+                if (!Covered(addition, record.Roots) || names.Contains(Full(addition))) throw new InvalidDataException("Invalid added-file record.");
+                CheckPath(addition);
+            }
+            foreach (string directory in record.Directories)
+            {
+                if (!record.Roots.Contains(directory) && !Covered(directory, record.Roots)) throw new InvalidDataException("Invalid backup directory.");
+                CheckPath(directory);
+            }
+            return record;
+        }
+
+        public static string Restore(string manifest, string backupRoot)
+        {
+            RecoveryRecord record = Read(manifest);
+            EnsureClosed(record.Roots);
+            var targets = new List<string>(record.AddedFiles);
+            var absent = new List<string>();
+            foreach (RecoveryFile file in record.Files)
+            {
+                string target = Target(record, file);
+                targets.Add(target);
+                if (!File.Exists(target)) absent.Add(target);
+            }
+            foreach (string target in targets)
+                if (File.Exists(target)) using (var test = new FileStream(target, FileMode.Open, FileAccess.Read, FileShare.None)) { }
+            string undo = CreateSelected(record.Roots, absent, backupRoot, targets);
+            try { Apply(record, manifest); }
+            catch (Exception ex)
+            {
+                try { Apply(Read(undo), undo); }
+                catch (Exception recovery) { throw new IOException("Restore failed: " + ex.Message + "\r\nAutomatic recovery also failed: " + recovery.Message + "\r\nYour pre-restore backup is: " + undo); }
+                throw new IOException("Restore failed; the pre-restore files were put back. Backup: " + undo + "\r\n" + ex.Message);
+            }
+            return undo;
+        }
+
+        private static void Apply(RecoveryRecord record, string manifest)
+        {
+            foreach (string directory in record.Directories) Directory.CreateDirectory(directory);
+            foreach (RecoveryFile file in record.Files)
+            {
+                string target = Target(record, file);
+                Directory.CreateDirectory(Path.GetDirectoryName(target));
+                if (File.Exists(target)) File.SetAttributes(target, FileAttributes.Normal);
+                File.Copy(Path.Combine(Path.GetDirectoryName(manifest), "Files", file.Root.ToString(), file.Relative), target, true);
+                if (!String.Equals(Hashing.Sha256(target), file.Sha256, StringComparison.OrdinalIgnoreCase)) throw new IOException("Restored file verification failed: " + target);
+                File.SetAttributes(target, FileAttributes.Normal);
+                File.SetLastWriteTimeUtc(target, new DateTime(file.ModifiedUtc, DateTimeKind.Utc));
+                File.SetAttributes(target, (FileAttributes)file.Attributes);
+            }
+            foreach (string addition in record.AddedFiles)
+                if (File.Exists(addition)) { File.SetAttributes(addition, FileAttributes.Normal); File.Delete(addition); }
+        }
+    }
+
     internal sealed class InstallPlan
     {
         private readonly ZipArchive _designerArchive;
@@ -1076,6 +1353,27 @@ namespace B2SPro.Setup
             "B2SNativeRotationDiagnostic.txt"
         };
         public readonly List<string> ExistingProgramFiles = new List<string>();
+
+        public string CreateRecovery(string backupRoot = null)
+        {
+            var roots = new List<string>();
+            roots.Add(_server);
+            var additions = new List<string>();
+            var selected = new List<string>();
+            foreach (CopyItem item in _items)
+            {
+                if (item.IsDesigner) continue;
+                // Match Execute: existing protected settings/plugins are not written.
+                if (item.Protected && File.Exists(item.Destination)) continue;
+                selected.Add(item.Destination);
+                if (!File.Exists(item.Destination)) additions.Add(item.Destination);
+            }
+            foreach (string name in RetiredServerFiles) selected.Add(Path.Combine(_server, name));
+            string receipt = Path.Combine(_server, "B2S-Package.sha256");
+            selected.Add(receipt);
+            if (!File.Exists(receipt)) additions.Add(receipt);
+            return FolderRecovery.CreateSelected(roots, additions, backupRoot ?? FolderRecovery.DefaultRoot, selected);
+        }
 
         public InstallPlan(ZipArchive designerArchive, ZipArchive serverArchive, string designer, string server, string arch, bool installDesigner, string serverPrefix, string designerDigest, string serverDigest)
         {
@@ -1136,7 +1434,8 @@ namespace B2SPro.Setup
             if (_installDesigner) Directory.CreateDirectory(_designer);
             Directory.CreateDirectory(_server);
             string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
-            string designerBackup = _installDesigner ? Path.Combine(_designer, "B2SPro-Backups", stamp) : null;
+            // Designer copies are temporary rollback protection, not a retained recovery archive.
+            string designerBackup = _installDesigner ? Path.Combine(Path.GetTempPath(), "B2SPro-InstallRollback-" + Guid.NewGuid().ToString("N")) : null;
             string serverBackup = Path.Combine(_server, "B2SPro-Backups", stamp);
             var changed = new List<RollbackItem>();
             int installed = 0;
@@ -1220,9 +1519,12 @@ namespace B2SPro.Setup
                 File.AppendAllText(log, DateTime.Now.ToString("s") + " Installed " + installed + " files; preserved " + preserved + " protected files; retired " + retired + " obsolete files; architecture " + _arch + "; registration " + (registerServer ? (registrationError == null ? "successful" : "failed: " + registrationError) : "skipped for test") + "; file associations " + ((registerFileAssociations || registerServer) ? (fileAssociationError == null ? "successful" : "failed: " + fileAssociationError) : "skipped") + "; shortcuts " + (createShortcuts ? (shortcutError == null ? "successful" : "failed: " + shortcutError) : "skipped for test") + Environment.NewLine);
                 ApplyVisibility(log, _installDesigner);
                 if (_installDesigner) ApplyVisibility(Path.Combine(_server, "B2SServer-Install.log"), false);
-                if (_installDesigner) MakeBackupVisible(Path.Combine(_designer, "B2SPro-Backups"));
+                if (_installDesigner && Directory.Exists(designerBackup))
+                {
+                    try { Directory.Delete(designerBackup, true); } catch { /* A locked temporary copy may be removed by normal temp cleanup. */ }
+                }
                 MakeBackupVisible(Path.Combine(_server, "B2SPro-Backups"));
-                bool backupCreated = (_installDesigner && Directory.Exists(designerBackup)) || Directory.Exists(serverBackup);
+                bool backupCreated = Directory.Exists(serverBackup);
                 return new InstallResult(_designer, _server, installed, preserved, retired, backupCreated ? stamp : null, _freshServer, registerServer, registrationError, registerFileAssociations || registerServer, fileAssociationError, createShortcuts, shortcutError, _installDesigner);
             }
             catch
@@ -1685,7 +1987,7 @@ namespace B2SPro.Setup
                         if (new FileInfo(Path.Combine(server, "B2SBackglassServer.dll")).Length < 100000) throw new Exception(arch + " Server payload was not installed.");
                         if (new FileInfo(Path.Combine(designer, "B2SUpdateChecker.exe")).Length < 10000) throw new Exception(arch + " Designer update checker was not installed.");
                         if (new FileInfo(Path.Combine(server, "B2SUpdateChecker.exe")).Length < 10000) throw new Exception(arch + " Server update checker was not installed.");
-                        if (Directory.GetFiles(Path.Combine(designer, "B2SPro-Backups"), "B2SPro.exe", SearchOption.AllDirectories).Length != 1) throw new Exception(arch + " Designer backup was not created.");
+                        if (Directory.Exists(Path.Combine(designer, "B2SPro-Backups"))) throw new Exception(arch + " Designer recovery archive should not be retained.");
                         if (Directory.GetFiles(Path.Combine(server, "B2SPro-Backups"), "B2SBackglassServer.dll", SearchOption.AllDirectories).Length != 1) throw new Exception(arch + " Server backup was not created.");
                         foreach (string name in retiredServerFiles)
                         {
@@ -1701,7 +2003,6 @@ namespace B2SPro.Setup
                         if ((File.GetAttributes(Path.Combine(server, "B2SUpdateChecker.exe")) & (FileAttributes.Hidden | FileAttributes.System)) != FileAttributes.Hidden) throw new Exception(arch + " Server update checker visibility was incorrect.");
                         if ((File.GetAttributes(Path.Combine(server, "ScreenRes.txt")) & FileAttributes.Hidden) != 0) throw new Exception(arch + " ScreenRes.txt was hidden.");
                         if ((File.GetAttributes(Path.Combine(designer, "B2SPro-Install.log")) & (FileAttributes.Hidden | FileAttributes.System)) != FileAttributes.Hidden) throw new Exception(arch + " install log visibility was incorrect.");
-                        if ((File.GetAttributes(Path.Combine(designer, "B2SPro-Backups")) & (FileAttributes.Hidden | FileAttributes.System)) != 0) throw new Exception(arch + " Designer backup folder was hidden or marked as a system file.");
                     }
                 }
 

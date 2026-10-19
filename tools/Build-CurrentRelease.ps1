@@ -246,7 +246,7 @@ Copy-Item -LiteralPath $updateChecker -Destination (Join-Path $serverRuntimeStag
 Copy-Item -LiteralPath (Join-Path $sourceCopyRoot 'CHANGELOG.md') -Destination (Join-Path $serverRuntimeStage 'B2S-Pro-Changelog.md') -Force
 Copy-Item -LiteralPath (Join-Path $serverRoot 'ScreenResTemplate.txt') -Destination (Join-Path $serverRuntimeStage 'ScreenResTemplate.txt') -Force
 
-$serverZip = Join-Path $buildRoot 'B2S-Pro-Server-3.0.6.zip'
+$serverZip = Join-Path $buildRoot 'B2S-Pro-Server-3.0.7.zip'
 $serverSidecar = $serverZip + '.sha256'
 New-Zip $serverRuntimeStage $serverZip
 Write-ShaSidecar $serverZip $serverSidecar
@@ -258,7 +258,7 @@ foreach ($path in @($designerZip, $designerSidecar, $serverZip, $serverSidecar))
     Copy-Item -LiteralPath $path -Destination $distRoot -Force
 }
 $selfTest = Join-Path $distRoot 'B2SSetup.SelfTest.exe'
-& $selfTest --self-test (Join-Path $distRoot 'B2S-Pro-Backglass-1.0.7.zip') (Join-Path $distRoot 'B2S-Pro-Server-3.0.6.zip')
+& $selfTest --self-test (Join-Path $distRoot 'B2S-Pro-Backglass-1.0.7.zip') (Join-Path $distRoot 'B2S-Pro-Server-3.0.7.zip')
 if ($LASTEXITCODE -ne 0) { throw "Installer self-test failed with exit code $LASTEXITCODE" }
 Copy-Item -LiteralPath (Join-Path $distRoot 'B2SProSetup.exe') -Destination $publicReleaseRoot -Force
 Copy-Item -LiteralPath (Join-Path $distRoot 'B2SServerSetup.exe') -Destination $publicReleaseRoot -Force
@@ -268,8 +268,8 @@ $publicNames = @(
     'B2SServerSetup.exe',
     'B2S-Pro-Backglass-1.0.7.zip',
     'B2S-Pro-Backglass-1.0.7.zip.sha256',
-    'B2S-Pro-Server-3.0.6.zip',
-    'B2S-Pro-Server-3.0.6.zip.sha256'
+    'B2S-Pro-Server-3.0.7.zip',
+    'B2S-Pro-Server-3.0.7.zip.sha256'
 )
 foreach ($name in $publicNames) {
     $path = Join-Path $publicReleaseRoot $name
@@ -287,15 +287,15 @@ if (@(Get-ChildItem -LiteralPath $publicReleaseRoot -File).Count -ne $publicName
 $offlineProStage = Join-Path $buildRoot 'offline-pro'
 $offlineServerStage = Join-Path $buildRoot 'offline-server'
 New-Item -ItemType Directory -Path $offlineProStage, $offlineServerStage -Force | Out-Null
-foreach ($name in @('B2SProSetup.exe', 'B2S-Pro-Backglass-1.0.7.zip', 'B2S-Pro-Backglass-1.0.7.zip.sha256', 'B2S-Pro-Server-3.0.6.zip', 'B2S-Pro-Server-3.0.6.zip.sha256')) {
+foreach ($name in @('B2SProSetup.exe', 'B2S-Pro-Backglass-1.0.7.zip', 'B2S-Pro-Backglass-1.0.7.zip.sha256', 'B2S-Pro-Server-3.0.7.zip', 'B2S-Pro-Server-3.0.7.zip.sha256')) {
     Copy-Item -LiteralPath (Join-Path $publicReleaseRoot $name) -Destination $offlineProStage -Force
 }
-foreach ($name in @('B2SServerSetup.exe', 'B2S-Pro-Server-3.0.6.zip', 'B2S-Pro-Server-3.0.6.zip.sha256')) {
+foreach ($name in @('B2SServerSetup.exe', 'B2S-Pro-Server-3.0.7.zip', 'B2S-Pro-Server-3.0.7.zip.sha256')) {
     Copy-Item -LiteralPath (Join-Path $publicReleaseRoot $name) -Destination $offlineServerStage -Force
 }
 New-Zip $offlineProStage (Join-Path $privateReleaseRoot 'B2S-Pro-Offline-Setup-1.0.7.zip')
 New-Zip $offlineProStage (Join-Path $privateReleaseRoot 'B2S-Pro-Private-Tester-Package-1.0.7.zip')
-New-Zip $offlineServerStage (Join-Path $privateReleaseRoot 'B2S-Server-Offline-Setup-3.0.6.zip')
+New-Zip $offlineServerStage (Join-Path $privateReleaseRoot 'B2S-Server-Offline-Setup-3.0.7.zip')
 Copy-Item -LiteralPath $x64Designer -Destination $handoffRoot -Force
 Copy-Item -LiteralPath $serverDll -Destination $handoffRoot -Force
 Copy-Item -LiteralPath $serverExe -Destination $handoffRoot -Force
@@ -339,7 +339,7 @@ try {
     }
 }
 finally { $designerArchive.Dispose() }
-$serverArchive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $publicReleaseRoot 'B2S-Pro-Server-3.0.6.zip'))
+$serverArchive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $publicReleaseRoot 'B2S-Pro-Server-3.0.7.zip'))
 try {
     $expectedServerEntries = @(
         'B2S-Pro-Changelog.md',

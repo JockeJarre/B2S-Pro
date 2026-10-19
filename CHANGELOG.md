@@ -2,6 +2,14 @@
 
 All notable B2S Pro changes are documented here. Release packages and checksums are published with each corresponding GitHub release.
 
+## Designer 1.0.7 / Server 3.0.7 — 2026-10-19
+
+- Add Restore Previous Setup to both installers. Back up and verify only existing server files replaced or removed by the update; record newly installed server files so restore can remove them.
+- Preserve existing settings, plugins, projects, tables and previous backups without copying them into recovery. Designer rollback copies are temporary during installation.
+- Verify recovery files before restoring and preserve current affected files as a safety backup. Keep backup/install progress separate from completed download progress.
+- Server release metadata advances to 3.0.7; runtime behavior and compatibility identifiers are unchanged. Designer remains 1.0.7.
+- Controlled package install/restore checks passed for x64, x86 and server-only setup. Live Windows registration and a full VPX rollback were not exercised by these checks. Recovery does not restore Windows registration or shortcuts.
+
 ## 1.0.7 / Server 3.0.6 — 2026-10-11
 
 ### October 19 update — versions unchanged
