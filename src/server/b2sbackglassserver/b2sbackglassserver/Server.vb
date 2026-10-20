@@ -221,10 +221,42 @@ Public Class Server
                     CheckTableHandle()
                 Else
                     If B2SSettings.IsROMControlled Then
-                        If callLamps Then Dim chg As Object = ChangedLamps()
-                        If callSolenoids Then Dim chg As Object = ChangedSolenoids()
-                        If callGIStrings Then Dim chg As Object = ChangedGIStrings()
-                        If callLEDs Then Dim chg As Object = ChangedLEDs(&HFFFFFFFF, &HFFFFFFFF)
+                        ' VPinMAME reports each change only once, to whoever asks first: as soon as the table
+                        ' polls one of these itself (a slow start can take longer than the 25 ticks above),
+                        ' stop polling it here, otherwise the table misses the changes taken by this timer
+                        ' (stuck flippers, lamps left on or off)
+                        If callLamps Then
+                            If isChangedLampsCalled Then
+                                callLamps = False
+                            Else
+                                Dim chg As Object = ChangedLamps()
+                                isChangedLampsCalled = False
+                            End If
+                        End If
+                        If callSolenoids Then
+                            If isChangedSolenoidsCalled Then
+                                callSolenoids = False
+                            Else
+                                Dim chg As Object = ChangedSolenoids()
+                                isChangedSolenoidsCalled = False
+                            End If
+                        End If
+                        If callGIStrings Then
+                            If isChangedGIStringsCalled Then
+                                callGIStrings = False
+                            Else
+                                Dim chg As Object = ChangedGIStrings()
+                                isChangedGIStringsCalled = False
+                            End If
+                        End If
+                        If callLEDs Then
+                            If isChangedLEDsCalled Then
+                                callLEDs = False
+                            Else
+                                Dim chg As Object = ChangedLEDs(&HFFFFFFFF, &HFFFFFFFF)
+                                isChangedLEDsCalled = False
+                            End If
+                        End If
                     End If
                 End If
 
@@ -490,34 +522,6 @@ Public Class Server
             End Try
         End If
 
-        If hasRunTable Then StartAutomaticUpdateCheck()
-
-    End Sub
-
-    Private Shared Sub StartAutomaticUpdateCheck()
-        Try
-            Dim serverFolder As String = IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
-            Dim checkerPath As String = IO.Path.Combine(serverFolder, "B2SUpdateChecker.exe")
-            If Not IO.File.Exists(checkerPath) Then Return
-
-            SyncLock GetType(Server)
-                If automaticUpdateCheckStarted Then Return
-                automaticUpdateCheckStarted = True
-            End SyncLock
-
-            Dim start As New ProcessStartInfo() With {
-                .FileName = checkerPath,
-                .Arguments = "--automatic server",
-                .WorkingDirectory = serverFolder,
-                .UseShellExecute = False,
-                .CreateNoWindow = True,
-                .WindowStyle = ProcessWindowStyle.Hidden
-            }
-            Using checker As Process = Process.Start(start)
-            End Using
-        Catch
-            ' Update availability must never interrupt table shutdown.
-        End Try
     End Sub
 
     Public Property LaunchBackglass() As Boolean
