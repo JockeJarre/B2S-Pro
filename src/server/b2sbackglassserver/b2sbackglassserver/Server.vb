@@ -257,6 +257,8 @@ Public Class Server
                                 isChangedLEDsCalled = False
                             End If
                         End If
+                    End If
+                End If
 
                 If B2SSettings.IsROMControlled AndAlso VPinMAME IsNot Nothing AndAlso
                    (B2SData.TesterSwitchesEnabled OrElse B2SData.UsedRomSwitchIDs.Count > 0) Then

@@ -42,6 +42,8 @@ jobs:
           New-Item -ItemType Directory -Path $serverRoot -Force | Out-Null
           Get-ChildItem -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'src\server') -Force |
               ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $serverRoot -Recurse -Force }
+            Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'CHANGELOG.md') -Destination (Join-Path $serverRoot 'CHANGELOG.md') -Force
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'src\shared') -Destination (Join-Path (Split-Path -Parent $serverRoot) 'shared') -Recurse -Force
           Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'B2SServerPluginInterface') -Destination $serverRoot -Recurse -Force
           "SERVER_ROOT=$serverRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
@@ -78,8 +80,8 @@ jobs:
           if (-not $major -or -not $minor -or -not $revision) { throw 'Could not read Server version constants.' }
           $shortVersion = "$major.$minor.$revision.$runNumber"
           $longVersion = "$shortVersion-$sha7"
-          $versionText = [regex]::Replace($versionText, '(B2S_VERSION_BUILD\s*=\s*")[^"]+(")', ('$1' + $runNumber + '$2'))
-          $versionText = [regex]::Replace($versionText, '(B2S_VERSION_HASH\s*=\s*")[^"]+(")', ('$1' + $sha7 + '$2'))
+          $versionText = [regex]::Replace($versionText, '(B2S_VERSION_BUILD\s*=\s*")[^"]+(")', ('${1}' + $runNumber + '${2}'))
+          $versionText = [regex]::Replace($versionText, '(B2S_VERSION_HASH\s*=\s*")[^"]+(")', ('${1}' + $sha7 + '${2}'))
           [IO.File]::WriteAllText($versionInfo, $versionText)
 
           $assemblyFiles = @(
@@ -95,7 +97,7 @@ jobs:
               foreach ($attribute in @('AssemblyVersion', 'AssemblyFileVersion', 'AssemblyInformationalVersion')) {
                   $pattern = '({0}\(")[^"]+("\))' -f [regex]::Escape($attribute)
                   $value = if ($attribute -eq 'AssemblyInformationalVersion') { $longVersion } else { $shortVersion }
-                  $text = [regex]::Replace($text, $pattern, ('$1' + $value + '$2'))
+                  $text = [regex]::Replace($text, $pattern, ('${1}' + $value + '${2}'))
               }
               [IO.File]::WriteAllText($path, $text)
           }
