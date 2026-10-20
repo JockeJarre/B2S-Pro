@@ -2,7 +2,9 @@
 param(
     [switch]$UseExistingHelp,
     [Parameter(Mandatory=$true)][string]$OcrDependencyRoot,
-    [Parameter(Mandatory=$true)][string]$OcrModelPath
+    [Parameter(Mandatory=$true)][string]$OcrModelPath,
+    [string]$LocalWorkRoot,
+    [string]$MSBuildPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,7 +15,11 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $workspaceRoot = (Resolve-Path -LiteralPath (Join-Path $repositoryRoot '..')).Path
-$localWorkRoot = Join-Path $workspaceRoot 'B2S-Local-Work'
+if ([string]::IsNullOrWhiteSpace($LocalWorkRoot)) {
+    $localWorkRoot = Join-Path $workspaceRoot 'B2S-Local-Work'
+} else {
+    $localWorkRoot = [IO.Path]::GetFullPath($LocalWorkRoot)
+}
 $baselineRoot = Join-Path $localWorkRoot 'Package-Templates'
 $localToolsRoot = Join-Path $localWorkRoot 'Build-Tools'
 $currentReleaseRoot = Join-Path $localWorkRoot 'Current-Release'
@@ -46,6 +52,13 @@ function Copy-DirectoryContents([string]$source, [string]$destination) {
     Get-ChildItem -LiteralPath $source -Force | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination $destination -Recurse -Force
     }
+}
+
+function Get-InformationalVersion([string]$path) {
+    $content = [IO.File]::ReadAllText($path)
+    $match = [regex]::Match($content, 'AssemblyInformationalVersion\("([^"]+)"\)')
+    if (-not $match.Success) { throw "Assembly informational version is missing: $path" }
+    return $match.Groups[1].Value
 }
 
 function Reset-Directory([string]$path, [string]$allowedParent) {
@@ -97,15 +110,21 @@ function Get-ZipEntryHash([System.IO.Compression.ZipArchive]$archive, [string]$e
     finally { $sha.Dispose() }
 }
 
-foreach ($path in @($repositoryRoot, $workspaceRoot, $localWorkRoot, $baselineRoot, $localToolsRoot)) {
+foreach ($path in @($repositoryRoot, $workspaceRoot, $localWorkRoot, $baselineRoot)) {
     if (-not (Test-Path -LiteralPath $path -PathType Container)) {
         throw "Required release path is missing: $path"
     }
 }
-foreach ($path in @(
-    (Join-Path $baselineRoot 'B2S-Pro-Server-3.0.0.zip'),
-    (Join-Path $localToolsRoot 'htmlhelp2\hhc.exe')
-)) {
+$requiredReleaseFiles = @(
+    (Join-Path $baselineRoot 'B2S-Pro-Server-3.0.0.zip')
+)
+if (-not $UseExistingHelp) {
+    if (-not (Test-Path -LiteralPath $localToolsRoot -PathType Container)) {
+        throw "Required release path is missing: $localToolsRoot"
+    }
+    $requiredReleaseFiles += Join-Path $localToolsRoot 'htmlhelp2\hhc.exe'
+}
+foreach ($path in $requiredReleaseFiles) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Required release baseline/tool is missing: $path"
     }
@@ -134,6 +153,22 @@ foreach ($name in @('README.md', 'CHANGELOG.md', 'CREDITS.md', 'LICENSE.txt')) {
 }
 Remove-GeneratedDirectories $sourceCopyRoot
 
+$designerVersion = Get-InformationalVersion (Join-Path $designerRoot 'b2sbackglassdesigner\My Project\AssemblyInfo.vb')
+$serverVersion = Get-InformationalVersion (Join-Path $serverRoot 'b2sbackglassserver\b2sbackglassserver\My Project\AssemblyInfo.vb')
+$installerSourcePath = Join-Path $installerRoot 'B2SProInstaller.cs'
+$installerSource = [IO.File]::ReadAllText($installerSourcePath)
+$serverOnlyMarker = $installerSource.IndexOf('#else', [StringComparison]::Ordinal)
+if ($serverOnlyMarker -lt 0) { throw 'Installer source is missing its SERVER_ONLY version branch.' }
+$serverInstallerSource = $installerSource.Substring(0, $serverOnlyMarker)
+$designerInstallerSource = $installerSource.Substring($serverOnlyMarker)
+$versionAttribute = [regex]'AssemblyInformationalVersion\("[^"]+"\)'
+if (-not $versionAttribute.IsMatch($serverInstallerSource) -or -not $versionAttribute.IsMatch($designerInstallerSource)) {
+    throw 'Installer source is missing a product informational-version attribute.'
+}
+$serverInstallerSource = $versionAttribute.Replace($serverInstallerSource, "AssemblyInformationalVersion(`"$serverVersion`")", 1)
+$designerInstallerSource = $versionAttribute.Replace($designerInstallerSource, "AssemblyInformationalVersion(`"$designerVersion`")", 1)
+[IO.File]::WriteAllText($installerSourcePath, $serverInstallerSource + $designerInstallerSource)
+
 # Compile the current help only in the external source copy.
 $helpSourceRoot = Join-Path $sourceCopyRoot 'docs\help-source'
 $helpCompiler = Join-Path $localToolsRoot 'htmlhelp2\hhc.exe'
@@ -157,7 +192,13 @@ $helpErrorLog = Join-Path $helpSourceRoot '_errorlog.txt'
 if (Test-Path -LiteralPath $helpErrorLog -PathType Leaf) { Remove-Item -LiteralPath $helpErrorLog -Force }
 
 # Build every distributed executable from the same external source snapshot.
-$msBuild = 'C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe'
+if ([string]::IsNullOrWhiteSpace($MSBuildPath)) {
+    $msBuildCommand = Get-Command MSBuild.exe -ErrorAction SilentlyContinue
+    if ($null -eq $msBuildCommand) { throw 'MSBuild.exe was not found on PATH.' }
+    $msBuild = $msBuildCommand.Source
+} else {
+    $msBuild = [IO.Path]::GetFullPath($MSBuildPath)
+}
 if (-not (Test-Path -LiteralPath $msBuild -PathType Leaf)) { throw "MSBuild is missing: $msBuild" }
 & $msBuild (Join-Path $designerRoot 'B2SBackglassDesigner.sln') /t:Rebuild /p:Configuration=Release /p:Platform=x64 /m:1 /v:minimal
 if ($LASTEXITCODE -ne 0) { throw 'x64 Designer build failed.' }
@@ -216,7 +257,8 @@ foreach ($platform in @('x64', 'x86')) {
 foreach ($name in @('README.md', 'CHANGELOG.md', 'CREDITS.md', 'LICENSE.txt')) {
     Copy-Item -LiteralPath (Join-Path $sourceCopyRoot $name) -Destination $designerRuntimeStage -Force
 }
-$designerZip = Join-Path $buildRoot 'B2S-Pro-Backglass-1.0.7.zip'
+$designerZipName = "B2S-Pro-Backglass-$designerVersion.zip"
+$designerZip = Join-Path $buildRoot $designerZipName
 $designerSidecar = $designerZip + '.sha256'
 New-Zip $designerRuntimeStage $designerZip
 Write-ShaSidecar $designerZip $designerSidecar
@@ -246,7 +288,8 @@ Copy-Item -LiteralPath $updateChecker -Destination (Join-Path $serverRuntimeStag
 Copy-Item -LiteralPath (Join-Path $sourceCopyRoot 'CHANGELOG.md') -Destination (Join-Path $serverRuntimeStage 'B2S-Pro-Changelog.md') -Force
 Copy-Item -LiteralPath (Join-Path $serverRoot 'ScreenResTemplate.txt') -Destination (Join-Path $serverRuntimeStage 'ScreenResTemplate.txt') -Force
 
-$serverZip = Join-Path $buildRoot 'B2S-Pro-Server-3.0.7.zip'
+$serverZipName = "B2S-Pro-Server-$serverVersion.zip"
+$serverZip = Join-Path $buildRoot $serverZipName
 $serverSidecar = $serverZip + '.sha256'
 New-Zip $serverRuntimeStage $serverZip
 Write-ShaSidecar $serverZip $serverSidecar
@@ -258,7 +301,7 @@ foreach ($path in @($designerZip, $designerSidecar, $serverZip, $serverSidecar))
     Copy-Item -LiteralPath $path -Destination $distRoot -Force
 }
 $selfTest = Join-Path $distRoot 'B2SSetup.SelfTest.exe'
-& $selfTest --self-test (Join-Path $distRoot 'B2S-Pro-Backglass-1.0.7.zip') (Join-Path $distRoot 'B2S-Pro-Server-3.0.7.zip')
+& $selfTest --self-test (Join-Path $distRoot $designerZipName) (Join-Path $distRoot $serverZipName)
 if ($LASTEXITCODE -ne 0) { throw "Installer self-test failed with exit code $LASTEXITCODE" }
 Copy-Item -LiteralPath (Join-Path $distRoot 'B2SProSetup.exe') -Destination $publicReleaseRoot -Force
 Copy-Item -LiteralPath (Join-Path $distRoot 'B2SServerSetup.exe') -Destination $publicReleaseRoot -Force
@@ -266,10 +309,10 @@ Copy-Item -LiteralPath (Join-Path $distRoot 'B2SServerSetup.exe') -Destination $
 $publicNames = @(
     'B2SProSetup.exe',
     'B2SServerSetup.exe',
-    'B2S-Pro-Backglass-1.0.7.zip',
-    'B2S-Pro-Backglass-1.0.7.zip.sha256',
-    'B2S-Pro-Server-3.0.7.zip',
-    'B2S-Pro-Server-3.0.7.zip.sha256'
+    $designerZipName,
+    "$designerZipName.sha256",
+    $serverZipName,
+    "$serverZipName.sha256"
 )
 foreach ($name in $publicNames) {
     $path = Join-Path $publicReleaseRoot $name
@@ -287,15 +330,15 @@ if (@(Get-ChildItem -LiteralPath $publicReleaseRoot -File).Count -ne $publicName
 $offlineProStage = Join-Path $buildRoot 'offline-pro'
 $offlineServerStage = Join-Path $buildRoot 'offline-server'
 New-Item -ItemType Directory -Path $offlineProStage, $offlineServerStage -Force | Out-Null
-foreach ($name in @('B2SProSetup.exe', 'B2S-Pro-Backglass-1.0.7.zip', 'B2S-Pro-Backglass-1.0.7.zip.sha256', 'B2S-Pro-Server-3.0.7.zip', 'B2S-Pro-Server-3.0.7.zip.sha256')) {
+foreach ($name in @('B2SProSetup.exe', $designerZipName, "$designerZipName.sha256", $serverZipName, "$serverZipName.sha256")) {
     Copy-Item -LiteralPath (Join-Path $publicReleaseRoot $name) -Destination $offlineProStage -Force
 }
-foreach ($name in @('B2SServerSetup.exe', 'B2S-Pro-Server-3.0.7.zip', 'B2S-Pro-Server-3.0.7.zip.sha256')) {
+foreach ($name in @('B2SServerSetup.exe', $serverZipName, "$serverZipName.sha256")) {
     Copy-Item -LiteralPath (Join-Path $publicReleaseRoot $name) -Destination $offlineServerStage -Force
 }
-New-Zip $offlineProStage (Join-Path $privateReleaseRoot 'B2S-Pro-Offline-Setup-1.0.7.zip')
-New-Zip $offlineProStage (Join-Path $privateReleaseRoot 'B2S-Pro-Private-Tester-Package-1.0.7.zip')
-New-Zip $offlineServerStage (Join-Path $privateReleaseRoot 'B2S-Server-Offline-Setup-3.0.7.zip')
+New-Zip $offlineProStage (Join-Path $privateReleaseRoot "B2S-Pro-Offline-Setup-$designerVersion.zip")
+New-Zip $offlineProStage (Join-Path $privateReleaseRoot "B2S-Pro-Private-Tester-Package-$designerVersion.zip")
+New-Zip $offlineServerStage (Join-Path $privateReleaseRoot "B2S-Server-Offline-Setup-$serverVersion.zip")
 Copy-Item -LiteralPath $x64Designer -Destination $handoffRoot -Force
 Copy-Item -LiteralPath $serverDll -Destination $handoffRoot -Force
 Copy-Item -LiteralPath $serverExe -Destination $handoffRoot -Force
@@ -316,7 +359,7 @@ foreach ($zipPath in Get-ChildItem -LiteralPath $publicReleaseRoot, $privateRele
     }
     finally { $archive.Dispose() }
 }
-$designerArchive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $publicReleaseRoot 'B2S-Pro-Backglass-1.0.7.zip'))
+$designerArchive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $publicReleaseRoot $designerZipName))
 try {
     $designerRuntimeComparisons = @{
         'x64/B2SPro.exe' = $x64Designer
@@ -339,7 +382,7 @@ try {
     }
 }
 finally { $designerArchive.Dispose() }
-$serverArchive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $publicReleaseRoot 'B2S-Pro-Server-3.0.7.zip'))
+$serverArchive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $publicReleaseRoot $serverZipName))
 try {
     $expectedServerEntries = @(
         'B2S-Pro-Changelog.md',

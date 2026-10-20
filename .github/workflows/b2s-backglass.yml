@@ -1,0 +1,207 @@
+name: B2S-Pro Server CI
+
+on:
+  push:
+    paths:
+      - 'src/server/**'
+      - 'CHANGELOG.md'
+      - '.github/workflows/b2s-backglass.yml'
+  pull_request:
+    paths:
+      - 'src/server/**'
+      - 'CHANGELOG.md'
+      - '.github/workflows/b2s-backglass.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-server:
+    name: Build B2S Server ${{ matrix.config }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: DirectOutput/B2SServerPluginInterface
+          path: B2SServerPluginInterface
+
+      - name: Prepare isolated source tree
+        shell: pwsh
+        run: |
+          $serverRoot = Join-Path $env:RUNNER_TEMP 'B2S-Pro-Server'
+          if (Test-Path -LiteralPath $serverRoot) {
+              Remove-Item -LiteralPath $serverRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $serverRoot -Force | Out-Null
+          Get-ChildItem -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'src\server') -Force |
+              ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $serverRoot -Recurse -Force }
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'B2SServerPluginInterface') -Destination $serverRoot -Recurse -Force
+          "SERVER_ROOT=$serverRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - uses: NuGet/setup-nuget@v2
+
+      - name: Restore .NET 4 reference assemblies
+        shell: pwsh
+        run: |
+          $packagesRoot = Join-Path $env:RUNNER_TEMP 'B2S-Pro-Server-Packages'
+          nuget install Microsoft.NETFramework.ReferenceAssemblies.net40 -Version 1.0.3 -OutputDirectory $packagesRoot
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download .NET Framework 4 reference assemblies.' }
+          $packageRoot = Join-Path $packagesRoot 'Microsoft.NETFramework.ReferenceAssemblies.net40.1.0.3'
+          $nupkg = Join-Path $packageRoot 'Microsoft.NETFramework.ReferenceAssemblies.net40.1.0.3.nupkg'
+          if (Test-Path -LiteralPath $nupkg) {
+              Expand-Archive -LiteralPath $nupkg -DestinationPath $packageRoot -Force
+          }
+          $frameworkPath = Join-Path $packageRoot 'build\.NETFramework\v4.0'
+          if (-not (Test-Path -LiteralPath $frameworkPath -PathType Container)) {
+              throw "Reference assemblies were not extracted: $frameworkPath"
+          }
+          "FRAMEWORK_PATH=$frameworkPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Stamp CI build metadata
+        id: version
+        shell: pwsh
+        run: |
+          $sha7 = $env:GITHUB_SHA.Substring(0, 7)
+          $runNumber = '${{ github.run_number }}'
+          $versionInfo = Join-Path $env:SERVER_ROOT 'b2sbackglassserver\b2sbackglassserver\Classes\B2SVersionInfo.vb'
+          $versionText = [IO.File]::ReadAllText($versionInfo)
+          $major = [regex]::Match($versionText, 'B2S_VERSION_MAJOR\s*=\s*"([0-9]+)"').Groups[1].Value
+          $minor = [regex]::Match($versionText, 'B2S_VERSION_MINOR\s*=\s*"([0-9]+)"').Groups[1].Value
+          $revision = [regex]::Match($versionText, 'B2S_VERSION_REVISION\s*=\s*"([0-9]+)"').Groups[1].Value
+          if (-not $major -or -not $minor -or -not $revision) { throw 'Could not read Server version constants.' }
+          $shortVersion = "$major.$minor.$revision.$runNumber"
+          $longVersion = "$shortVersion-$sha7"
+          $versionText = [regex]::Replace($versionText, '(B2S_VERSION_BUILD\s*=\s*")[^"]+(")', ('$1' + $runNumber + '$2'))
+          $versionText = [regex]::Replace($versionText, '(B2S_VERSION_HASH\s*=\s*")[^"]+(")', ('$1' + $sha7 + '$2'))
+          [IO.File]::WriteAllText($versionInfo, $versionText)
+
+          $assemblyFiles = @(
+              'b2s_screenresidentifier\b2s_screenresidentifier\My Project\AssemblyInfo.vb',
+              'B2S_SetUp\Properties\AssemblyInfo.cs',
+              'b2sbackglassserver\b2sbackglassserver\My Project\AssemblyInfo.vb',
+              'b2sbackglassserverregisterapp\b2sbackglassserverregisterapp\My Project\AssemblyInfo.vb',
+              'B2SWindowPunch\B2SWindowPunch\Properties\AssemblyInfo.cs'
+          )
+          foreach ($relativePath in $assemblyFiles) {
+              $path = Join-Path $env:SERVER_ROOT $relativePath
+              $text = [IO.File]::ReadAllText($path)
+              foreach ($attribute in @('AssemblyVersion', 'AssemblyFileVersion', 'AssemblyInformationalVersion')) {
+                  $pattern = '({0}\(")[^"]+("\))' -f [regex]::Escape($attribute)
+                  $value = if ($attribute -eq 'AssemblyInformationalVersion') { $longVersion } else { $shortVersion }
+                  $text = [regex]::Replace($text, $pattern, ('$1' + $value + '$2'))
+              }
+              [IO.File]::WriteAllText($path, $text)
+          }
+
+          $pluginAssemblyInfo = Join-Path $env:SERVER_ROOT 'B2SServerPluginInterface\B2SServerPluginInterface\Properties\AssemblyInfo.cs'
+          $pluginText = [IO.File]::ReadAllText($pluginAssemblyInfo)
+          $pluginVersion = [regex]::Match($pluginText, 'AssemblyVersion\("([0-9]+\.[0-9]+\.[0-9]+)').Groups[1].Value
+          if (-not $pluginVersion) { throw 'Could not read plugin interface assembly version.' }
+          $pluginBuildVersion = "$pluginVersion.$runNumber"
+          $pluginText = [regex]::Replace($pluginText, 'AssemblyConfiguration\(""\)', 'AssemblyConfiguration("Compiled by B2S.Pro")')
+          $pluginText += "`n[assembly: AssemblyFileVersion(`"$pluginBuildVersion`")]`n[assembly: AssemblyInformationalVersion(`"$pluginBuildVersion-$sha7`")]`n"
+          [IO.File]::WriteAllText($pluginAssemblyInfo, $pluginText)
+          "CI_VERSION=$shortVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "CI_VERSION_LONG=$longVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "version=$shortVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build B2S Server plugin interface
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/B2S-Pro-Server
+        run: |
+          msbuild B2SServerPluginInterface/B2SServerPluginInterface.sln /t:Rebuild /p:Configuration=${{ matrix.config }} /p:FrameworkPathOverride="$env:FRAMEWORK_PATH"
+          if ($LASTEXITCODE -ne 0) { throw 'B2S Server plugin interface build failed.' }
+          $pluginOutput = Join-Path $env:SERVER_ROOT "B2SServerPluginInterface\B2SServerPluginInterface\bin\${{ matrix.config }}"
+          Copy-Item -LiteralPath (Join-Path $pluginOutput 'B2SServerPluginInterface.dll') -Destination (Join-Path $env:SERVER_ROOT 'b2sbackglassserver\b2sbackglassserver\Plugin') -Force
+          if ('${{ matrix.config }}' -eq 'Debug') {
+              Copy-Item -LiteralPath (Join-Path $pluginOutput 'B2SServerPluginInterface.pdb') -Destination (Join-Path $env:SERVER_ROOT 'b2sbackglassserver\b2sbackglassserver\Plugin') -Force
+          }
+
+      - name: Build Server projects
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/B2S-Pro-Server
+        run: |
+          $builds = @(
+              @('b2s_screenresidentifier/B2S_ScreenResIdentifier.sln', ''),
+              @('B2S_SetUp/B2S_SetUp.sln', ''),
+              @('b2sbackglassserver/B2SBackglassServer.sln', ''),
+              @('b2sbackglassserverregisterapp/B2SBackglassServerRegisterApp.sln', '/p:Platform=x86'),
+              @('B2SWindowPunch/B2SWindowPunch.sln', '')
+          )
+          foreach ($build in $builds) {
+              msbuild $build[0] /t:Rebuild /p:Configuration=${{ matrix.config }} $build[1]
+              if ($LASTEXITCODE -ne 0) { throw "Build failed: $($build[0])" }
+          }
+
+      - name: Bundle CI artifact
+        shell: pwsh
+        run: |
+          $bundle = Join-Path $env:RUNNER_TEMP 'B2S-Pro-Server-Bundle'
+          if (Test-Path -LiteralPath $bundle) { Remove-Item -LiteralPath $bundle -Recurse -Force }
+          New-Item -ItemType Directory -Path $bundle -Force | Out-Null
+          $configuration = '${{ matrix.config }}'
+          $files = @(
+              "b2s_screenresidentifier\b2s_screenresidentifier\bin\$configuration\B2S_ScreenResIdentifier.exe",
+              "b2s_screenresidentifier\b2s_screenresidentifier\bin\$configuration\B2S_ScreenResIdentifier.exe.config",
+              "B2S_SetUp\bin\$configuration\B2S_SetUp.exe",
+              "B2S_SetUp\bin\$configuration\B2S_SetUp.exe.config",
+              "b2sbackglassserverregisterapp\b2sbackglassserverregisterapp\bin\x86\$configuration\B2SBackglassServerRegisterApp.exe",
+              'B2SServerPluginInterface\B2SServerPluginInterface\bin\${{ matrix.config }}\B2SServerPluginInterface.dll',
+              "b2sbackglassserver\b2sbackglassserver\bin\$configuration\B2SBackglassServer.dll",
+              "b2sbackglassserver\B2SBackglassServer\bin\$configuration\B2SBackglassServerEXE.exe",
+              "b2sbackglassserver\B2SBackglassServer\bin\$configuration\B2SBackglassServerEXE.exe.config",
+              'b2sbackglassserver\b2sbackglassserver\B2SInit.cmd',
+              "B2SWindowPunch\B2SWindowPunch\bin\$configuration\B2SWindowPunch.exe",
+              'Plugins.txt',
+              'Changelog.txt',
+              'license.txt',
+              'README.md',
+              'ScreenResTemplate.txt',
+              'b2sbackglassserverregisterapp\ScreenResTemplates.cmd'
+          )
+          foreach ($relativePath in $files) {
+              $source = Join-Path $env:SERVER_ROOT $relativePath
+              if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Bundle source file is missing: $relativePath" }
+              $destinationName = if ($relativePath -eq 'README.md') { 'README.txt' } else { [IO.Path]::GetFileName($relativePath) }
+              Copy-Item -LiteralPath $source -Destination (Join-Path $bundle $destinationName) -Force
+          }
+          Copy-Item -LiteralPath (Join-Path $env:SERVER_ROOT 'CHANGELOG.md') -Destination (Join-Path $bundle 'B2S-Pro-Changelog.md') -Force
+          foreach ($directory in @('ScreenResTemplates', 'B2STools')) {
+              Copy-Item -LiteralPath (Join-Path $env:SERVER_ROOT $directory) -Destination $bundle -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path (Join-Path $bundle 'Plugins'), (Join-Path $bundle 'Plugins64') -Force | Out-Null
+          Copy-Item -LiteralPath (Join-Path $env:SERVER_ROOT 'Plugins.txt') -Destination (Join-Path $bundle 'Plugins\Plugins.txt') -Force
+          Copy-Item -LiteralPath (Join-Path $env:SERVER_ROOT 'Plugins.txt') -Destination (Join-Path $bundle 'Plugins64\Plugins.txt') -Force
+
+          if ($configuration -eq 'Debug') {
+              $pdbs = @(
+                  "b2s_screenresidentifier\b2s_screenresidentifier\bin\$configuration\B2S_ScreenResIdentifier.pdb",
+                  "b2sbackglassserverregisterapp\b2sbackglassserverregisterapp\bin\x86\$configuration\B2SBackglassServerRegisterApp.pdb",
+                  "B2SServerPluginInterface\B2SServerPluginInterface\bin\$configuration\B2SServerPluginInterface.pdb",
+                  "b2sbackglassserver\b2sbackglassserver\bin\$configuration\B2SBackglassServer.pdb",
+                  "b2sbackglassserver\B2SBackglassServer\bin\$configuration\B2SBackglassServerEXE.pdb",
+                  "B2SWindowPunch\B2SWindowPunch\bin\$configuration\B2SWindowPunch.pdb"
+              )
+              foreach ($relativePath in $pdbs) {
+                  $source = Join-Path $env:SERVER_ROOT $relativePath
+                  if (Test-Path -LiteralPath $source -PathType Leaf) {
+                      Copy-Item -LiteralPath $source -Destination $bundle -Force
+                  }
+              }
+          }
+          "BUNDLE_PATH=$bundle" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: B2S-Pro-Server-${{ steps.version.outputs.version }}-${{ matrix.config }}-win
+          path: ${{ runner.temp }}/B2S-Pro-Server-Bundle
+          if-no-files-found: error
