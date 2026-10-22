@@ -14,6 +14,10 @@ The same tested installation engine produces two separate setup programs:
   `%ProgramData%\B2SPro\SetupPaths.txt`. Later runs prefill existing locations;
   server-only updates retain the saved Designer location. Explicit updater
   launch arguments take precedence over remembered locations.
+- Both setups offer **Disable automatic update notifications**. The choice is
+  stored for the current Windows user and applies to automatic Designer and
+  Server checks. Manual **Check for Updates** remains available. Rerun setup
+  with the option cleared to re-enable automatic notifications.
 - The installer automatically detects a server in `B2SServer`, `Tables`, or the
   VPX folder itself. A Change button remains available for nonstandard layouts.
 - On a completely fresh setup, the installer creates `B2SServer` inside the

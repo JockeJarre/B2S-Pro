@@ -130,6 +130,7 @@ namespace B2SPro.Setup
         private readonly ComboBox _architecture = new ComboBox();
         private readonly RadioButton _localSource = new RadioButton();
         private readonly RadioButton _githubSource = new RadioButton();
+        private readonly CheckBox _disableAutomaticUpdateNotifications = new CheckBox();
         private readonly Button _installButton = new NeonButton { Primary = true };
         private readonly Button _restoreButton = new NeonButton();
         private bool _operationRunning;
@@ -165,6 +166,7 @@ namespace B2SPro.Setup
             SizeChanged += delegate { NeonDrawing.ShapeWindow(this); };
             NeonDrawing.ShapeWindow(this);
             LoadSavedPaths();
+            _disableAutomaticUpdateNotifications.Checked = UpdateNotificationPreference.IsDisabled();
             ApplyLaunchOptions(launchOptions);
             _vpxFolder.Leave += delegate { if (Directory.Exists(_vpxFolder.Text.Trim())) SetSuggestedFolders(_vpxFolder.Text.Trim()); };
         }
@@ -287,7 +289,7 @@ namespace B2SPro.Setup
             _root.BackColor = Color.Transparent;
             _root.ColumnCount = 1;
             _root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            _root.RowCount = SetupEdition.ServerOnly ? 7 : 9;
+            _root.RowCount = SetupEdition.ServerOnly ? 8 : 10;
             for (int row = 0; row < _root.RowCount; row++)
                 _root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -306,6 +308,7 @@ namespace B2SPro.Setup
             _serverFolder.ReadOnly = false;
             if (!SetupEdition.ServerOnly) _root.Controls.Add(CreateArchitectureRow(), 0, nextRow++);
             _root.Controls.Add(CreateSourcePanel(), 0, nextRow++);
+            _root.Controls.Add(CreateUpdateNotificationPanel(), 0, nextRow++);
 
             var statusPanel = new TableLayoutPanel { BackColor = Color.Transparent, Padding = new Padding(5), Margin = new Padding(0, 2, 0, 10), Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1, RowCount = 2 };
             statusPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -424,6 +427,32 @@ namespace B2SPro.Setup
             card.Controls.Add(flow); return card;
         }
 
+        private Control CreateUpdateNotificationPanel()
+        {
+            var card = new NeonCard();
+            var panel = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, BackColor = Color.Transparent };
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30));
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            panel.Controls.Add(new NeonGlyph { Kind = "chip", Dock = DockStyle.Fill, MinimumSize = new Size(32, 32) }, 0, 0);
+            _disableAutomaticUpdateNotifications.Text = "Disable automatic update notifications";
+            _disableAutomaticUpdateNotifications.AutoSize = true;
+            _disableAutomaticUpdateNotifications.ForeColor = Color.White;
+            _disableAutomaticUpdateNotifications.BackColor = Color.Transparent;
+            _disableAutomaticUpdateNotifications.UseVisualStyleBackColor = false;
+            _disableAutomaticUpdateNotifications.Margin = new Padding(0, 5, 0, 1);
+            panel.Controls.Add(_disableAutomaticUpdateNotifications, 1, 0);
+            var description = new Label
+            {
+                Text = "Manual Check for Updates remains available.",
+                AutoSize = true,
+                ForeColor = Color.FromArgb(149, 176, 204),
+                Margin = new Padding(0, 1, 0, 3)
+            };
+            panel.Controls.Add(description, 1, 1);
+            card.Controls.Add(panel);
+            return card;
+        }
+
         private void BrowseVpx(object sender, EventArgs e)
         {
             using (var dialog = new OpenFileDialog())
@@ -517,6 +546,7 @@ namespace B2SPro.Setup
                     try
                     {
                         SetupPaths.Save(_vpxFolder.Text.Trim(), SetupEdition.ServerOnly ? null : _designerFolder.Text.Trim(), _serverFolder.Text.Trim());
+                        UpdateNotificationPreference.Save(_disableAutomaticUpdateNotifications.Checked);
                     }
                     catch (Exception ex)
                     {
@@ -1759,6 +1789,57 @@ namespace B2SPro.Setup
         }
     }
 
+    internal static class UpdateNotificationPreference
+    {
+        private const string DisabledFileName = "AutomaticNotificationsDisabled.txt";
+
+        private static string DefaultFolder
+        {
+            get
+            {
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "B2SPro",
+                    "UpdateChecks");
+            }
+        }
+
+        public static bool IsDisabled()
+        {
+            return IsDisabledIn(DefaultFolder);
+        }
+
+        public static void Save(bool disabled)
+        {
+            SaveIn(DefaultFolder, disabled);
+        }
+
+        internal static bool IsDisabledIn(string folder)
+        {
+            try
+            {
+                string path = Path.Combine(folder, DisabledFileName);
+                return File.Exists(path) && String.Equals(File.ReadAllText(path).Trim(), "1", StringComparison.Ordinal);
+            }
+            catch { return false; }
+        }
+
+        internal static void SaveIn(string folder, bool disabled)
+        {
+            Directory.CreateDirectory(folder);
+            string path = Path.Combine(folder, DisabledFileName);
+            if (!disabled)
+            {
+                if (File.Exists(path)) File.Delete(path);
+                return;
+            }
+            string temporary = path + ".new";
+            File.WriteAllText(temporary, "1", Encoding.ASCII);
+            if (File.Exists(path)) File.Replace(temporary, path, null);
+            else File.Move(temporary, path);
+        }
+    }
+
     internal sealed class CopyItem
     {
         public readonly ZipArchiveEntry Entry;
@@ -2067,6 +2148,11 @@ namespace B2SPro.Setup
             {
                 if (args.Length < 3 || !File.Exists(args[1]) || !File.Exists(args[2])) throw new ArgumentException("Usage: B2SSetup.exe --self-test <designer-build.zip> <server-build.zip>");
                 string sandbox = Path.Combine(Path.GetTempPath(), "B2SProInstallerSelfTest-" + Guid.NewGuid().ToString("N"));
+                string preferenceFolder = Path.Combine(sandbox, "UpdateChecks");
+                UpdateNotificationPreference.SaveIn(preferenceFolder, true);
+                if (!UpdateNotificationPreference.IsDisabledIn(preferenceFolder)) throw new Exception("Automatic update notification opt-out was not saved.");
+                UpdateNotificationPreference.SaveIn(preferenceFolder, false);
+                if (UpdateNotificationPreference.IsDisabledIn(preferenceFolder)) throw new Exception("Automatic update notifications could not be re-enabled.");
                 string originalDesigner = Path.Combine(sandbox, "OriginalDesigner");
                 Directory.CreateDirectory(originalDesigner);
                 string originalDesignerExe = Path.Combine(originalDesigner, "B2SBackglassDesigner.exe");
