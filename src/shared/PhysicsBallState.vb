@@ -182,6 +182,13 @@ Public Partial Class B2SData
             End If
             AdvancePhysics(0.001R)
         End Sub
+
+        Public Sub PresentServerFrame()
+            If Not physicsActive Then Return
+            Dim scaleX As Single = If(authoredBallWidth <= 0.0F, 1.0F, ball.RectangleF.Width / authoredBallWidth)
+            Dim scaleY As Single = If(authoredBallHeight <= 0.0F, 1.0F, ball.RectangleF.Height / authoredBallHeight)
+            ball.SetMotionPathPosition(New PointF(physicsCenter.X * scaleX, physicsCenter.Y * scaleY), True)
+        End Sub
 #End If
 
         Private Sub Tick(ByVal sender As Object, ByVal e As EventArgs)
@@ -279,7 +286,9 @@ Public Partial Class B2SData
                 Dim holdCenter As PointF = PointF.Empty, angle As Single = 0.0F
                 GetLauncherPose(holdCenter, angle)
                 physicsCenter = holdCenter
+#If PHYSICS_PREVIEW Then
                 ball.SetMotionPathPosition(New PointF(holdCenter.X * scaleX, holdCenter.Y * scaleY))
+#End If
                 velocity = PointF.Empty
                 Return
             End If
@@ -327,7 +336,9 @@ Public Partial Class B2SData
             CheckLauncherCapture(center, 1.0F, 1.0F)
             CheckSwitchZones(previousCenter, center, 1.0F, 1.0F)
             physicsCenter = center
+#If PHYSICS_PREVIEW Then
             ball.SetMotionPathPosition(New PointF(center.X * scaleX, center.Y * scaleY), True)
+#End If
         End Sub
 
         Private Shared Sub ApplyShallowSurfaceRollingBoost(ByRef ballVelocity As PointF,

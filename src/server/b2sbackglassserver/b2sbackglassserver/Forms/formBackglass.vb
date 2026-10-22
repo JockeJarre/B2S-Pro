@@ -879,17 +879,17 @@ Public Class formBackglass
             End Using
             Dim maskSize As Size = picbox.PhysicsSelectionMaskSize
             Dim maskAlpha As Byte() = picbox.PhysicsSelectionMaskAlpha
-            Dim canvasWidth As Integer = Math.Max(1, Me.ClientSize.Width)
-            Dim canvasHeight As Integer = Math.Max(1, Me.ClientSize.Height)
+            Dim maskScaleX As Single = Math.Max(Single.Epsilon, B2SScreen.BackglassRescaleFactor.Width)
+            Dim maskScaleY As Single = Math.Max(Single.Epsilon, B2SScreen.BackglassRescaleFactor.Height)
             Dim data As BitmapData = frame.LockBits(New Rectangle(Point.Empty, frame.Size), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb)
             Try
                 Dim row(frame.Width * 4 - 1) As Byte
                 For y As Integer = 0 To frame.Height - 1
                     Dim rowPointer As IntPtr = IntPtr.Add(data.Scan0, y * data.Stride)
                     Runtime.InteropServices.Marshal.Copy(rowPointer, row, 0, row.Length)
-                    Dim maskY As Integer = CInt(Math.Floor((frameBounds.Top + y + 0.5F) * maskSize.Height / canvasHeight))
+                    Dim maskY As Integer = CInt(Math.Floor((frameBounds.Top + y + 0.5F) * maskScaleY))
                     For x As Integer = 0 To frame.Width - 1
-                        Dim maskX As Integer = CInt(Math.Floor((frameBounds.Left + x + 0.5F) * maskSize.Width / canvasWidth))
+                        Dim maskX As Integer = CInt(Math.Floor((frameBounds.Left + x + 0.5F) * maskScaleX))
                         Dim alpha As Integer = 0
                         If maskX >= 0 AndAlso maskY >= 0 AndAlso maskX < maskSize.Width AndAlso maskY < maskSize.Height Then
                             alpha = maskAlpha(maskY * maskSize.Width + maskX)
@@ -2868,16 +2868,6 @@ Public Class formBackglass
                         If picboxtype = B2SPictureBox.ePictureBoxType.StandardImage AndAlso
                            innerNode.Attributes("AutomaticRotationEnabled") IsNot Nothing Then
                             nativerotation = (innerNode.Attributes("AutomaticRotationEnabled").InnerText = "1")
-                        End If
-                        ' Legacy mechanical snippets already contain one source bitmap and
-                        ' receive absolute 0-359 degree positions from VPinMAME. Render that
-                        ' source directly at the reported angle instead of indexing the old
-                        ' step-count bitmap cache, whose 0..steps-1 keys discard most values.
-                        ' This is a runtime-only compatibility route; the directB2S remains
-                        ' in its original legacy format and is not converted by the editor.
-                        If picboxtype = B2SPictureBox.ePictureBoxType.MechRotatingImage AndAlso
-                           picboxrotatesteps > 0 Then
-                            nativerotation = True
                         End If
                         If nativerotation AndAlso innerNode.Attributes("AutomaticRotationContinuous") IsNot Nothing Then
                             automaticrotationcontinuous = (innerNode.Attributes("AutomaticRotationContinuous").InnerText = "1")

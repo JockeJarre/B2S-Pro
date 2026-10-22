@@ -228,11 +228,16 @@ Public Class Server
                     End If
                 End If
 
-                If B2SSettings.IsROMControlled AndAlso VPinMAME IsNot Nothing AndAlso
-                   (B2SData.TesterSwitchesEnabled OrElse B2SData.UsedRomSwitchIDs.Count > 0) Then
-                    For switchID As Integer = 1 To 255
-                        UpdateTesterSwitchState(switchID, CBool(VPinMAME.Switch(switchID)))
-                    Next
+                If B2SSettings.IsROMControlled AndAlso VPinMAME IsNot Nothing Then
+                    If B2SData.TesterSwitchesEnabled Then
+                        For switchID As Integer = 1 To 255
+                            UpdateTesterSwitchState(switchID, CBool(VPinMAME.Switch(switchID)))
+                        Next
+                    ElseIf B2SData.UsedRomSwitchIDs.Count > 0 Then
+                        For Each switchID As Integer In B2SData.UsedRomSwitchIDs.Keys
+                            UpdateTesterSwitchState(switchID, CBool(VPinMAME.Switch(switchID)))
+                        Next
+                    End If
                 End If
                 If formBackglass IsNot Nothing AndAlso Not B2SData.IsBackglassStartedAsEXE Then
                     formBackglass.FlushTesterSwitchOffs()
@@ -2993,13 +2998,14 @@ Public Class Server
                     process = New Process()
                     process.StartInfo.FileName = IO.Path.Combine(exePath, exeName)
                     process.StartInfo.Arguments = """" & B2SData.TableFileName & """ """ & If(B2SData.TestMode, "1", "0") & """ """ & switchPulsePipeName & """"
+                    process.EnableRaisingEvents = True
+                    AddHandler process.Exited, AddressOf BackglassProcess_Exited
+                    B2SData.IsBackglassVisible = True
                     process.Start()
 
                     If B2SSettings.IsROMControlled Then
                         VPinMAME.hidden = If((B2SSettings.HideDMD = Windows.Forms.CheckState.Indeterminate), Hidden, (B2SSettings.HideDMD = Windows.Forms.CheckState.Checked)) ' Hidden OrElse B2SSettings.HideDMD
                     End If
-
-                    B2SData.IsBackglassVisible = True
 
                 Catch ex As Exception
                     If B2SSettings.ShowStartupError Then
@@ -3093,6 +3099,11 @@ Public Class Server
                 p.Start()
             End If
         End If
+    End Sub
+
+    Private Sub BackglassProcess_Exited(ByVal sender As Object, ByVal e As EventArgs)
+        B2SData.StopSwitchPulseBridge()
+        B2SData.IsBackglassVisible = False
     End Sub
 
     Private Sub HideBackglassForm()
