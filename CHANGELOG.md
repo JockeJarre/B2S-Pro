@@ -2,6 +2,16 @@
 
 All notable B2S Pro changes are documented here. Release packages and checksums are published with each corresponding GitHub release.
 
+## Designer 1.0.7 / Server 3.0.8 — 2026-10-22
+
+- Add a setup option to disable automatic update notifications for both Designer and Server. Manual **Check for Updates** remains available, and rerunning setup with the option cleared re-enables automatic notifications.
+- Stop the physics trigger pipe and mark the backglass unavailable when the separate Server EXE exits. Tables with a PUP pack and no B2S backglass no longer stall on repeated 100 ms connections to a receiver that has already exited.
+- Present physics-ball positions once per completed server frame and map masks with the saved backglass scale, preserving ball size, movement, and masking across display sizes.
+- Restore the established legacy mechanical-snippet rotation route while keeping native one-image rotation limited to files that explicitly enable it.
+- Poll only the ROM switches used by the loaded backglass unless the tester explicitly requests the complete switch range.
+- Detect conflicting B2S runtime copies below the selected Visual Pinball folder, include only those runtime files in verified recovery, and retire them during installation. Preserve ScreenRes files, settings, plugins, tables, backglasses, backups, and unrelated files.
+- Server release metadata advances to 3.0.8. Designer remains 1.0.7.
+
 ## Designer 1.0.7 / Server 3.0.7 — 2026-10-19
 
 - Add Restore Previous Setup to both installers. Back up and verify only existing server files replaced or removed by the update; record newly installed server files so restore can remove them.

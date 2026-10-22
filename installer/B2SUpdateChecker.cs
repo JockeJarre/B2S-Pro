@@ -119,6 +119,7 @@ namespace B2SPro.Updates
                 if (!ownsMutex) return;
                 try
                 {
+                    if (!interactive && UpdateNotificationPreference.IsDisabled()) return;
                     if (!interactive && !DailyCheckState.Begin(target.Component)) return;
 
                     Version installedVersion = target.ReadInstalledVersion();
@@ -540,6 +541,34 @@ namespace B2SPro.Updates
         }
     }
 
+    internal static class UpdateNotificationPreference
+    {
+        private const string DisabledFileName = "AutomaticNotificationsDisabled.txt";
+
+        public static bool IsDisabled()
+        {
+            string folder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "B2SPro",
+                "UpdateChecks");
+            return IsDisabledIn(folder);
+        }
+
+        internal static bool IsDisabledIn(string folder)
+        {
+            try
+            {
+                string path = Path.Combine(folder, DisabledFileName);
+                return File.Exists(path) && String.Equals(File.ReadAllText(path).Trim(), "1", StringComparison.Ordinal);
+            }
+            catch
+            {
+                // An unreadable preference must not disable update checks accidentally.
+                return false;
+            }
+        }
+    }
+
     internal static class SelfTest
     {
         public static int Run()
@@ -563,7 +592,21 @@ namespace B2SPro.Updates
                 Assert(GitHubReleaseClient.NormalizeDigest("sha256:not-a-hash") == null, "Invalid GitHub digest was accepted.");
                 Assert(designer.SetupFolderArgument == "--installed-designer", "Designer setup handoff is incorrect.");
                 Assert(server.SetupFolderArgument == "--installed-server", "Server setup handoff is incorrect.");
-                Console.WriteLine("SELF-TEST PASSED: component selection, package parsing, version comparison, digest validation, and setup handoff");
+                string preferenceFolder = Path.Combine(Path.GetTempPath(), "B2SUpdatePreferenceSelfTest-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(preferenceFolder);
+                try
+                {
+                    Assert(!UpdateNotificationPreference.IsDisabledIn(preferenceFolder), "A missing notification preference disabled automatic checks.");
+                    File.WriteAllText(Path.Combine(preferenceFolder, "AutomaticNotificationsDisabled.txt"), "1", Encoding.ASCII);
+                    Assert(UpdateNotificationPreference.IsDisabledIn(preferenceFolder), "The disabled notification preference was not honored.");
+                    File.WriteAllText(Path.Combine(preferenceFolder, "AutomaticNotificationsDisabled.txt"), "0", Encoding.ASCII);
+                    Assert(!UpdateNotificationPreference.IsDisabledIn(preferenceFolder), "An enabled notification preference disabled automatic checks.");
+                }
+                finally
+                {
+                    try { Directory.Delete(preferenceFolder, true); } catch { }
+                }
+                Console.WriteLine("SELF-TEST PASSED: component selection, package parsing, version comparison, digest validation, setup handoff, and automatic-notification preference");
                 return 0;
             }
             catch (Exception ex)

@@ -3,8 +3,8 @@
 The same tested installation engine produces two separate setup programs:
 
 - `B2SProSetup.exe` installs B2S Pro Backglass Designer 1.0.7 beside the
-  original Designer and installs or updates B2S Pro Server 3.0.7.
-- `B2SServerSetup.exe` installs or updates only B2S Pro Server 3.0.7 for VPX
+  original Designer and installs or updates B2S Pro Server 3.0.8.
+- `B2SServerSetup.exe` installs or updates only B2S Pro Server 3.0.8 for VPX
   players who do not need the Designer.
 
 ## Installation model
@@ -14,6 +14,10 @@ The same tested installation engine produces two separate setup programs:
   `%ProgramData%\B2SPro\SetupPaths.txt`. Later runs prefill existing locations;
   server-only updates retain the saved Designer location. Explicit updater
   launch arguments take precedence over remembered locations.
+- Both setups offer **Disable automatic update notifications**. The choice is
+  stored for the current Windows user and applies to automatic Designer and
+  Server checks. Manual **Check for Updates** remains available. Rerun setup
+  with the option cleared to re-enable automatic notifications.
 - The installer automatically detects a server in `B2SServer`, `Tables`, or the
   VPX folder itself. A Change button remains available for nonstandard layouts.
 - On a completely fresh setup, the installer creates `B2SServer` inside the
@@ -69,10 +73,10 @@ For private development or offline installation, keep the applicable verified
 files together in one folder:
 
 - Complete setup: `B2SProSetup.exe`, `B2S-Pro-Backglass-1.0.7.zip`,
-  `B2S-Pro-Backglass-1.0.7.zip.sha256`, `B2S-Pro-Server-3.0.7.zip`, and
-  `B2S-Pro-Server-3.0.7.zip.sha256`.
-- Server-only setup: `B2SServerSetup.exe`, `B2S-Pro-Server-3.0.7.zip`, and
-  `B2S-Pro-Server-3.0.7.zip.sha256`.
+  `B2S-Pro-Backglass-1.0.7.zip.sha256`, `B2S-Pro-Server-3.0.8.zip`, and
+  `B2S-Pro-Server-3.0.8.zip.sha256`.
+- Server-only setup: `B2SServerSetup.exe`, `B2S-Pro-Server-3.0.8.zip`, and
+  `B2S-Pro-Server-3.0.8.zip.sha256`.
 
 Each package's checksum sidecar is required. Setup verifies every required
 package before changing any installed files.
