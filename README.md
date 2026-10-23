@@ -7,7 +7,7 @@ B2S Pro is a modernized backglass designer and animation workspace for creating 
 ## Current release
 
 - B2S Pro Backglass Designer: **1.0.7**
-- B2S Pro Server: **3.0.7**
+- B2S Pro Server: **3.0.8**
 - Platform: Windows
 
 The tested Designer and Server runtime packages are distributed from the [B2S Pro Releases](https://github.com/KWildman69/B2S-Pro/releases/latest) page. GitHub provides the source code directly, and compiled release files are not stored in the source tree.
@@ -51,7 +51,7 @@ See [Speaker grill panels](docs/speaker-grill-panels.md) for the panel and saved
 ## Source layout
 
 - `src/designer` — B2S Pro Backglass Designer 1.0.7 source
-- `src/server` — B2S Pro Server 3.0.7 source
+- `src/server` — B2S Pro Server 3.0.8 source
 - `docs/help-source` — complete help project and illustrated documentation
 - `CHANGELOG.md` — B2S Pro release history
 - `CREDITS.md` — acknowledgements and project lineage

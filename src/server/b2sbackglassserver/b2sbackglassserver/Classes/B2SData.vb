@@ -378,6 +378,9 @@ Public Partial Class B2SData
             physicsPendingSeconds = Math.Max(0.0R, physicsPendingSeconds - steps * 0.001R)
             ' Present only the completed frame; painting every 1 ms substep
             ' blocks the UI thread and makes rendering feed back into catch-up.
+            For Each state As PhysicsBallState In PhysicsBalls
+                state.PresentServerFrame()
+            Next
             For Each pivot As B2SPictureBox In pivots
                 pivot.PresentPhysicsPivot()
             Next
